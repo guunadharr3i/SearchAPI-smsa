@@ -3,7 +3,7 @@ name: Build and Release WAR
 on:
   push:
     tags:
-      - '*-v*.*.*'  # Matches uat-v1.0.0, cug-v1.0.0, prod-v1.0.0
+      - '*-v*.*.*'  # Triggers on tags like uat-v1.0.0, cug-v1.2.0, prod-v3.0.0
 
 jobs:
   build:
@@ -32,15 +32,14 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
-    # Extract environment prefix from tag (e.g., uat-v1.0.0 → UAT)
-    env:
-      TAG_NAME: ${{ github.ref_name }}
-      PREFIX: ${{ github.ref_name.split('-')[0] }}
-      ENVIRONMENT_NAME: ${{ github.ref_name.split('-')[0].toUpperCase() }}
-
-    environment: ${{ env.ENVIRONMENT_NAME }}  # Uses UAT, CUG, or PROD
-
     steps:
+      - name: Extract environment from tag
+        run: |
+          echo "Full tag: ${{ github.ref_name }}"
+          ENVIRONMENT_PREFIX=$(echo "${{ github.ref_name }}" | cut -d'-' -f1)
+          ENVIRONMENT_NAME=$(echo "$ENVIRONMENT_PREFIX" | tr '[:lower:]' '[:upper:]')
+          echo "ENVIRONMENT_NAME=$ENVIRONMENT_NAME" >> $GITHUB_ENV
+
       - name: Download WAR from build job
         uses: actions/download-artifact@v4
         with:
@@ -49,8 +48,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          name: Release ${{ env.TAG_NAME }}
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           files: '*.war'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -64,9 +63,10 @@ jobs:
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
           ASSIGNEE_ID: ${{ vars.ASSIGNEE_ID }}
-          TAG_NAME: ${{ env.TAG_NAME }}
+          TAG_NAME: ${{ github.ref_name }}
         run: |
-          echo "📦 WAR file and tag: $TAG_NAME"
+          echo "Detected Environment: $ENVIRONMENT_NAME"
+          WAR_FILE=$(find . -name "*.war" | head -n 1)
 
           cat <<EOF > payload.json
           {
@@ -82,7 +82,7 @@ jobs:
                     "content": [
                       {
                         "type": "text",
-                        "text": "Automated build and GitHub release completed for tag ${TAG_NAME}."
+                        "text": "Automated build and GitHub release completed for tag ${TAG_NAME} in ${ENVIRONMENT_NAME} environment."
                       }
                     ]
                   }
@@ -108,8 +108,6 @@ jobs:
           fi
 
           echo "✅ Created Jira issue: $ISSUE_KEY"
-
-          WAR_FILE=$(find . -name "*.war" | head -n 1)
 
           curl -s -X POST \
             --url "https://guunadharrnv.atlassian.net/rest/api/3/issue/${ISSUE_KEY}/attachments" \
