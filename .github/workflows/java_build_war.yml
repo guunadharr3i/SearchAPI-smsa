@@ -66,13 +66,18 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           echo "Detected Environment: $ENVIRONMENT_NAME"
+          echo "JIRA_PROJECT=$JIRA_PROJECT"
+          echo "ASSIGNEE_ID=$ASSIGNEE_ID"
+          echo "JIRA_EMAIL=$JIRA_EMAIL"
+
           WAR_FILE=$(find . -name "*.war" | head -n 1)
 
+          echo "Creating Jira payload..."
           cat <<EOF > payload.json
           {
             "fields": {
-              "project": { "key": "${JIRA_PROJECT}" },
-              "summary": "WAR build and release successful - ${TAG_NAME}",
+              "project": { "key": "$JIRA_PROJECT" },
+              "summary": "WAR build and release successful - $TAG_NAME",
               "description": {
                 "type": "doc",
                 "version": 1,
@@ -82,23 +87,28 @@ jobs:
                     "content": [
                       {
                         "type": "text",
-                        "text": "Automated build and GitHub release completed for tag ${TAG_NAME} in ${ENVIRONMENT_NAME} environment."
+                        "text": "Automated build and GitHub release completed for tag $TAG_NAME in $ENVIRONMENT_NAME environment."
                       }
                     ]
                   }
                 ]
               },
               "issuetype": { "name": "Task" },
-              "assignee": { "accountId": "${ASSIGNEE_ID}" }
+              "assignee": { "accountId": "$ASSIGNEE_ID" }
             }
           }
           EOF
+
+          echo "Payload content:"
+          cat payload.json
 
           ISSUE_RESPONSE=$(curl -s -X POST \
             --url "https://guunadharrnv.atlassian.net/rest/api/3/issue" \
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data @payload.json)
+
+          echo "Jira Response: $ISSUE_RESPONSE"
 
           ISSUE_KEY=$(echo "$ISSUE_RESPONSE" | jq -r '.key')
 
@@ -130,7 +140,7 @@ jobs:
                     \"content\": [
                       {
                         \"type\": \"text\",
-                        \"text\": \"WAR file uploaded successfully for tag ${TAG_NAME}.\"
+                        \"text\": \"WAR file uploaded successfully for tag $TAG_NAME.\"
                       }
                     ]
                   }
