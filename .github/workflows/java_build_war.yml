@@ -3,7 +3,7 @@ name: Build and Release WAR
 on:
   push:
     tags:
-      - '*-v*.*.*'  # Triggers on tags like uat-v1.0.0, cug-v1.2.0, prod-v3.0.0
+      - '*-v*.*.*'  # Example: uat-v1.0.0, prod-v2.3.1, cug-v0.9.9
 
 jobs:
   build:
@@ -32,15 +32,22 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
 
+    # Dynamically set environment from tag prefix (e.g., UAT, CUG, PROD)
+    environment: ${{ steps.setenv.outputs.env }}
+
+    outputs:
+      env: ${{ steps.setenv.outputs.env }}
+
     steps:
       - name: Extract environment from tag
+        id: setenv
         run: |
-          echo "Full tag: ${{ github.ref_name }}"
-          ENVIRONMENT_PREFIX=$(echo "${{ github.ref_name }}" | cut -d'-' -f1)
-          ENVIRONMENT_NAME=$(echo "$ENVIRONMENT_PREFIX" | tr '[:lower:]' '[:upper:]')
-          echo "ENVIRONMENT_NAME=$ENVIRONMENT_NAME" >> $GITHUB_ENV
+          TAG="${{ github.ref_name }}"
+          PREFIX=$(echo "$TAG" | cut -d'-' -f1 | tr '[:lower:]' '[:upper:]')
+          echo "ENVIRONMENT_NAME=$PREFIX" >> $GITHUB_ENV
+          echo "::set-output name=env::$PREFIX"
 
-      - name: Download WAR from build job
+      - name: Download WAR artifact
         uses: actions/download-artifact@v4
         with:
           name: java-war
@@ -66,18 +73,14 @@ jobs:
           TAG_NAME: ${{ github.ref_name }}
         run: |
           echo "Detected Environment: $ENVIRONMENT_NAME"
-          echo "JIRA_PROJECT=$JIRA_PROJECT"
-          echo "ASSIGNEE_ID=$ASSIGNEE_ID"
-          echo "JIRA_EMAIL=$JIRA_EMAIL"
-
           WAR_FILE=$(find . -name "*.war" | head -n 1)
 
           echo "Creating Jira payload..."
           cat <<EOF > payload.json
           {
             "fields": {
-              "project": { "key": "$JIRA_PROJECT" },
-              "summary": "WAR build and release successful - $TAG_NAME",
+              "project": { "key": "${JIRA_PROJECT}" },
+              "summary": "WAR build and release successful - ${TAG_NAME}",
               "description": {
                 "type": "doc",
                 "version": 1,
@@ -87,14 +90,14 @@ jobs:
                     "content": [
                       {
                         "type": "text",
-                        "text": "Automated build and GitHub release completed for tag $TAG_NAME in $ENVIRONMENT_NAME environment."
+                        "text": "Automated build and GitHub release completed for tag ${TAG_NAME} in ${ENVIRONMENT_NAME} environment."
                       }
                     ]
                   }
                 ]
               },
               "issuetype": { "name": "Task" },
-              "assignee": { "accountId": "$ASSIGNEE_ID" }
+              "assignee": { "accountId": "${ASSIGNEE_ID}" }
             }
           }
           EOF
@@ -107,8 +110,6 @@ jobs:
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data @payload.json)
-
-          echo "Jira Response: $ISSUE_RESPONSE"
 
           ISSUE_KEY=$(echo "$ISSUE_RESPONSE" | jq -r '.key')
 
@@ -140,7 +141,7 @@ jobs:
                     \"content\": [
                       {
                         \"type\": \"text\",
-                        \"text\": \"WAR file uploaded successfully for tag $TAG_NAME.\"
+                        \"text\": \"WAR file uploaded successfully for tag ${TAG_NAME}.\"
                       }
                     ]
                   }
