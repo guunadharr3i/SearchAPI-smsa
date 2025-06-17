@@ -3,10 +3,23 @@ name: Build and Release WAR
 on:
   push:
     tags:
-      - '*-v*.*.*'  # Example: uat-v1.0.0, prod-v2.3.1, cug-v0.9.9
+      - '*-v*.*.*'  # e.g., uat-v1.0.0, cug-v1.2.0, prod-v3.0.0
 
 jobs:
+  extract-env:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.setenv.outputs.environment }}
+    steps:
+      - name: Extract environment from tag
+        id: setenv
+        run: |
+          TAG="${{ github.ref_name }}"
+          PREFIX=$(echo "$TAG" | cut -d'-' -f1 | tr '[:lower:]' '[:upper:]')
+          echo "environment=$PREFIX" >> $GITHUB_OUTPUT
+
   build:
+    needs: extract-env
     runs-on: ubuntu-latest
 
     steps:
@@ -29,25 +42,12 @@ jobs:
           path: target/*.war
 
   release:
-    needs: build
+    needs: [build, extract-env]
     runs-on: ubuntu-latest
-
-    # Dynamically set environment from tag prefix (e.g., UAT, CUG, PROD)
-    environment: ${{ steps.setenv.outputs.env }}
-
-    outputs:
-      env: ${{ steps.setenv.outputs.env }}
+    environment: ${{ needs.extract-env.outputs.environment }}
 
     steps:
-      - name: Extract environment from tag
-        id: setenv
-        run: |
-          TAG="${{ github.ref_name }}"
-          PREFIX=$(echo "$TAG" | cut -d'-' -f1 | tr '[:lower:]' '[:upper:]')
-          echo "ENVIRONMENT_NAME=$PREFIX" >> $GITHUB_ENV
-          echo "::set-output name=env::$PREFIX"
-
-      - name: Download WAR artifact
+      - name: Download WAR from build job
         uses: actions/download-artifact@v4
         with:
           name: java-war
@@ -71,6 +71,7 @@ jobs:
           JIRA_PROJECT: ${{ vars.JIRA_PROJECT }}
           ASSIGNEE_ID: ${{ vars.ASSIGNEE_ID }}
           TAG_NAME: ${{ github.ref_name }}
+          ENVIRONMENT_NAME: ${{ needs.extract-env.outputs.environment }}
         run: |
           echo "Detected Environment: $ENVIRONMENT_NAME"
           WAR_FILE=$(find . -name "*.war" | head -n 1)
