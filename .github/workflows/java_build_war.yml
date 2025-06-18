@@ -35,11 +35,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
+          
+      - name: Make mvnw executable
+        run: chmod +x mvnw
 
       - name: Build WAR
-        run: |
-          ./mvnw clean package
-          ls -al target
+        run: ./mvnw clean package
 
       - name: Upload WAR
         uses: actions/upload-artifact@v4
