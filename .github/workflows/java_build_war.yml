@@ -35,7 +35,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          
+
       - name: Make mvnw executable
         run: chmod +x mvnw
 
@@ -51,6 +51,7 @@ jobs:
   create-jira-ticket:
     runs-on: ubuntu-latest
     needs: [build, extract-env]
+    environment: ${{ needs.extract-env.outputs.environment }} # ✅ Corrected line
 
     steps:
       - name: Download WAR
