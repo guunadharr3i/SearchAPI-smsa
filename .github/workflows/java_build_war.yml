@@ -106,10 +106,11 @@ jobs:
           cat payload.json
 
           ISSUE_RESPONSE=$(curl -s -X POST \
-            --url "https://jira.icicibank.com/rest/api/2/issue" \
+            --url "https://jira.icicibank.com/rest/api/latest/issue" \
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data @payload.json)
+
 
           echo "Raw ISSUE_RESPONSE: $ISSUE_RESPONSE"
           ISSUE_KEY=$(echo "$ISSUE_RESPONSE" | jq -r '.key')
