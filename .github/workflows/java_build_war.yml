@@ -51,7 +51,6 @@ jobs:
   create-jira-ticket:
     runs-on: ubuntu-latest
     needs: [build, extract-env]
-    environment: ${{ needs.extract-env.outputs.environment }} # ✅ Corrected line
 
     steps:
       - name: Download WAR
@@ -102,7 +101,7 @@ jobs:
           cat payload.json
 
           ISSUE_RESPONSE=$(curl -s -X POST \
-            --url "https://jira.icicibank.com/rest/api/latest/issue" \
+            --url "https://jira.icicibank.com/dashboard/rest/api/latest/issue" \
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data @payload.json)
@@ -119,14 +118,14 @@ jobs:
           echo "✅ Created Jira issue: $ISSUE_KEY"
 
           curl -s -X POST \
-            --url "https://jira.icicibank.com/rest/api/latest/issue/${ISSUE_KEY}/attachments" \
+            --url "https://jira.icicibank.com/dashboard/rest/api/latest/issue/${ISSUE_KEY}/attachments" \
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "X-Atlassian-Token: no-check" \
             --header "Content-Type: multipart/form-data" \
             --form "file=@${WAR_FILE}"
 
           curl -s -X POST \
-            --url "https://jira.icicibank.com/rest/api/latest/issue/${ISSUE_KEY}/comment" \
+            --url "https://jira.icicibank.com/dashboard/rest/api/latest/issue/${ISSUE_KEY}/comment" \
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data "{
