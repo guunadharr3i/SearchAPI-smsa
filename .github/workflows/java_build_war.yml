@@ -3,23 +3,10 @@ name: Build and Release WAR
 on:
   push:
     tags:
-      - '*-v*.*.*'  # e.g., uat-v1.0.0, cug-v1.2.0, prod-v3.0.0
+      - '*-v*.*.*'  # Triggers on tags like uat-v1.0.0, cug-v1.0.0, prod-v1.0.0
 
 jobs:
-  extract-env:
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.setenv.outputs.environment }}
-    steps:
-      - name: Extract environment from tag
-        id: setenv
-        run: |
-          TAG="${{ github.ref_name }}"
-          PREFIX=$(echo "$TAG" | cut -d'-' -f1 | tr '[:lower:]' '[:upper:]')
-          echo "environment=$PREFIX" >> $GITHUB_OUTPUT
-
   build:
-    needs: extract-env
     runs-on: ubuntu-latest
 
     steps:
@@ -41,10 +28,22 @@ jobs:
           name: java-war
           path: target/*.war
 
+  extract-env:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.setenv.outputs.env }}
+    steps:
+      - name: Set environment name
+        id: setenv
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          ENVIRONMENT=$(echo "$TAG_NAME" | cut -d'-' -f1 | tr '[:lower:]' '[:upper:]')
+          echo "ENVIRONMENT=$ENVIRONMENT"
+          echo "env=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
+
   release:
     needs: [build, extract-env]
     runs-on: ubuntu-latest
-    environment: ${{ needs.extract-env.outputs.environment }}
 
     steps:
       - name: Download WAR from build job
@@ -98,11 +97,11 @@ jobs:
                 ]
               },
               "issuetype": { "name": "Task" },
-              "assignee": { "accountId": "${ASSIGNEE_ID}" }
+              "assignee": { "name": "${ASSIGNEE_ID}" }
             }
           }
-          EOF
 
+          EOF
           echo "Payload content:"
           cat payload.json
 
@@ -112,6 +111,7 @@ jobs:
             --header "Content-Type: application/json" \
             --data @payload.json)
 
+          echo "Raw ISSUE_RESPONSE: $ISSUE_RESPONSE"
           ISSUE_KEY=$(echo "$ISSUE_RESPONSE" | jq -r '.key')
 
           if [ "$ISSUE_KEY" == "null" ] || [ -z "$ISSUE_KEY" ]; then
@@ -133,20 +133,5 @@ jobs:
             --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             --header "Content-Type: application/json" \
             --data "{
-              \"body\": {
-                \"type\": \"doc\",
-                \"version\": 1,
-                \"content\": [
-                  {
-                    \"type\": \"paragraph\",
-                    \"content\": [
-                      {
-                        \"type\": \"text\",
-                        \"text\": \"WAR file uploaded successfully for tag ${TAG_NAME}.\"
-                      }
-                    ]
-                  }
-                ]
-              }
+              \"body\": \"WAR file uploaded successfully for tag ${TAG_NAME}.\"
             }"
-
