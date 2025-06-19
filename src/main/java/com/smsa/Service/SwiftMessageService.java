@@ -8,12 +8,17 @@
  */
 package com.smsa.Service;
 
-import com.smsa.DTO.SwiftRequestPojo;
+import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface SwiftMessageService {
 //    SwiftRequestPojo getSwiftMessageByTxnRef(String txnRef);
 
-    public List<SwiftMessageHeader> getFilteredMessages(SwiftRequestPojo filters);
+    public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters,Pageable pageable);
+    
+    public List<SwiftMessageHeader> getFullData();
+ 
 }

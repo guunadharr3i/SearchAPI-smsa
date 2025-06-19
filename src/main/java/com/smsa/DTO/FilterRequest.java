@@ -4,7 +4,6 @@
  */
 package com.smsa.DTO;
 
-import com.smsa.DTO.SwiftRequestPojo;
 import java.util.Map;
 
 /**
@@ -13,7 +12,7 @@ import java.util.Map;
  */
 public class FilterRequest {
     private Map<String,String> tokenRequest;
-    private SwiftRequestPojo filter;
+    private SwiftMessageHeaderPojo filter;
 
     /**
      * @return the tokenRequest
@@ -32,15 +31,16 @@ public class FilterRequest {
     /**
      * @return the filter
      */
-    public SwiftRequestPojo getFilter() {
+    public SwiftMessageHeaderPojo getFilter() {
         return filter;
     }
 
     /**
      * @param filter the filter to set
      */
-    public void setFilter(SwiftRequestPojo filter) {
+    public void setFilter(SwiftMessageHeaderPojo filter) {
         this.filter = filter;
     }
+
     
 }
