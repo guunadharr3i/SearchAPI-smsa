@@ -7,7 +7,6 @@ import com.smsa.Service.SwiftMessageService;
 import com.smsa.entity.SwiftMessageHeader;
 import java.util.HashMap;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -41,70 +40,70 @@ public class SwiftMessageController {
     private ObjectMapper objectMapper; // Add this if not autowired already
 
     @PostMapping("/searchApi")
-public ResponseEntity<?> getFilteredMessages(
-        @RequestBody FilterRequest filter,
-        @RequestParam(defaultValue = "0") int page,
-        @RequestParam(defaultValue = "10") int size) {
+    public ResponseEntity<?> getFilteredMessages(
+            @RequestBody FilterRequest filter,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-    logger.info("Received request to /searchApi with filter: {}, page: {}, size: {}", filter, page, size);
+        logger.info("Received request to /searchApi with filter: {}, page: {}, size: {}", filter, page, size);
 
-    try {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(filter.getTokenRequest(), headers);
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(filter.getTokenRequest(), headers);
 
-        logger.debug("Calling authentication service at URL: {}", authenticationUrl);
-        ResponseEntity<String> tokenResponse = restTemplate.postForEntity(authenticationUrl, requestEntity, String.class);
+            logger.debug("Calling authentication service at URL: {}", authenticationUrl);
+            ResponseEntity<String> tokenResponse = restTemplate.postForEntity(authenticationUrl, requestEntity, String.class);
 
-        if (tokenResponse.getStatusCode().is2xxSuccessful()) {
-            logger.info("Token refresh successful, status: {}", tokenResponse.getStatusCodeValue());
+            if (tokenResponse.getStatusCode().is2xxSuccessful()) {
+                logger.info("Token refresh successful, status: {}", tokenResponse.getStatusCodeValue());
 
-            String tokenJson = tokenResponse.getBody();
-            String accessToken = objectMapper.readTree(tokenJson).get("accessToken").asText();
+                String tokenJson = tokenResponse.getBody();
+                String accessToken = objectMapper.readTree(tokenJson).get("accessToken").asText();
 
-            try {
-                Pageable pageable = PageRequest.of(page, size);
-                Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
+                try {
+                    Pageable pageable = PageRequest.of(page, size);
+                    Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
-                logger.info("Filtered messages retrieved successfully, count: {}", pagedResult.getTotalElements());
+                    logger.info("Filtered messages retrieved successfully, count: {}", pagedResult.getTotalElements());
 
-                Map<String, Object> responseBody = new HashMap<>();
-                responseBody.put("accessToken", accessToken);
-                responseBody.put("messages", pagedResult.getContent());
-                responseBody.put("totalPages", pagedResult.getTotalPages());
-                responseBody.put("totalElements", pagedResult.getTotalElements());
-                responseBody.put("currentPage", pagedResult.getNumber());
+                    Map<String, Object> responseBody = new HashMap<>();
+                    responseBody.put("accessToken", accessToken);
+                    responseBody.put("messages", pagedResult.getContent());
+                    responseBody.put("totalPages", pagedResult.getTotalPages());
+                    responseBody.put("totalElements", pagedResult.getTotalElements());
+                    responseBody.put("currentPage", pagedResult.getNumber());
 
-                return ResponseEntity.ok(responseBody);
+                    return ResponseEntity.ok(responseBody);
 
-            } catch (Exception ex) {
-                logger.error("Error retrieving filtered messages: {}", ex.getMessage(), ex);
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Error retrieving messages.");
+                } catch (Exception ex) {
+                    logger.error("Error retrieving filtered messages: {}", ex.getMessage(), ex);
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body("Error retrieving messages.");
+                }
+
+            } else {
+                logger.warn("Token refresh failed, status code: {}", tokenResponse.getStatusCodeValue());
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body("Token refresh failed.");
             }
 
-        } else {
-            logger.warn("Token refresh failed, status code: {}", tokenResponse.getStatusCodeValue());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("Token refresh failed.");
+        } catch (HttpClientErrorException ex) {
+            logger.error("HTTP client error: {}, response body: {}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body("Token refresh error: " + ex.getMessage());
+
+        } catch (RestClientException ex) {
+            logger.error("RestClientException during token refresh: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error calling token refresh service.");
+
+        } catch (Exception ex) {
+            logger.error("Unexpected error during token refresh: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Unexpected error occurred.");
         }
-
-    } catch (HttpClientErrorException ex) {
-        logger.error("HTTP client error: {}, response body: {}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
-        return ResponseEntity.status(ex.getStatusCode())
-                .body("Token refresh error: " + ex.getMessage());
-
-    } catch (RestClientException ex) {
-        logger.error("RestClientException during token refresh: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Error calling token refresh service.");
-
-    } catch (Exception ex) {
-        logger.error("Unexpected error during token refresh: {}", ex.getMessage(), ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body("Unexpected error occurred.");
     }
-}
 
     @GetMapping("/getSmsaData")
     public ResponseEntity<?> getFullData() {

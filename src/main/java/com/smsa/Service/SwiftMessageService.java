@@ -20,5 +20,7 @@ public interface SwiftMessageService {
     public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters,Pageable pageable);
     
     public List<SwiftMessageHeader> getFullData();
+    
+    public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters);
  
 }

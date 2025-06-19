@@ -185,4 +185,34 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 .replace("_", "\\_")
                 .replace("%", "\\%");
     }
+
+    @Override
+    public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters) {
+         List<SwiftMessageHeader> resultList = new ArrayList<>();
+        long totalCount = 0;
+
+        try {
+            CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+
+            CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
+            Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
+            List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
+
+            query.select(root).distinct(true);
+            if (!predicates.isEmpty()) {
+                query.where(cb.and(predicates.toArray(new Predicate[0])));
+            }
+
+            TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
+            resultList = typedQuery.getResultList();
+        } catch (Exception e) {
+            logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
+        }
+
+        List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
+                .map(this::mapToPojo)
+                .collect(Collectors.toList());
+
+        return pojoList;
+    }
 }

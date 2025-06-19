@@ -4,10 +4,14 @@
  */
 package com.smsa.Controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smsa.DTO.FilterRequest;
+import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.Service.SwiftMessageCsvExportService;
 import com.smsa.Service.SwiftMessageExportPdfService;
 import com.smsa.Service.SwiftMessageExportService;
 import com.smsa.Service.SwiftMessageExportTxtService;
+import com.smsa.Service.SwiftMessageService;
 import com.smsa.Service.TxtFilesService;
 import java.io.File;
 import java.io.FileInputStream;
@@ -16,24 +20,37 @@ import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 /**
  *
  * @author abcom
  */
+@RestController
+@RequestMapping
 public class SmsaDownloadJpaController {
 
     private static final Logger logger = LogManager.getLogger(SmsaDownloadJpaController.class);
-    
-     @Autowired
+
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${authentication.url}")
+    private String authenticationUrl;
+
+    @Autowired
     private SwiftMessageExportService exportService;
 
     @Autowired
@@ -48,13 +65,44 @@ public class SmsaDownloadJpaController {
     @Autowired
     private SwiftMessageCsvExportService csvExportService;
 
+    @Autowired
+    private ObjectMapper objectMapper; // Add this if not autowired already
 
-    @GetMapping("/export/xls")
-    public ResponseEntity<InputStreamResource> exportSwiftHeadersToExcel() {
+    @Autowired
+    private SwiftMessageService service;
+
+    @PostMapping("/download")
+    public ResponseEntity<?> getFilteredMessages(
+            @RequestBody FilterRequest filter,
+            @RequestParam String downloadType) {
+
+        logger.info("Received request to /download with filter: {} and downloadType: {}", filter, downloadType);
+
+        try {
+            switch (downloadType.toUpperCase()) {
+                case "XLSX":
+                    return exportSwiftHeadersToExcel(filter.getFilter());
+                case "TXT":
+                    return exportTxtZip(filter.getFilter());
+                case "CSV":
+                    return exportSwiftHeadersToCsv(filter.getFilter());
+                default:
+                    logger.warn("Invalid downloadType: {}", downloadType);
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Invalid downloadType: " + downloadType);
+            }
+        } catch (Exception e) {
+            logger.error("Exception while processing download request", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An unexpected error occurred while generating the file.");
+        }
+    }
+
+    public ResponseEntity<InputStreamResource> exportSwiftHeadersToExcel(SwiftMessageHeaderPojo filters) {
         logger.info("Exporting data to Excel zip");
         try {
             String path = System.getProperty("java.io.tmpdir");
-            String filePath = exportService.exportSwiftHeadersToZip(path);
+            String filePath = exportService.exportSwiftHeadersToZip(path, filters);
             File zipFile = new File(filePath);
 
             if (!zipFile.exists()) {
@@ -77,10 +125,9 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    @GetMapping("/export/txt")
-    public ResponseEntity<InputStreamResource> exportTxtZip() throws IOException {
+    public ResponseEntity<InputStreamResource> exportTxtZip(SwiftMessageHeaderPojo filters) throws IOException {
         logger.info("Exporting TXT zip");
-        File zipFile = txtService.exportTxtZip(System.getProperty("java.io.tmpdir"));
+        File zipFile = txtService.exportTxtZip(System.getProperty("java.io.tmpdir"), filters);
 
         if (zipFile == null) {
             logger.warn("TXT zip export returned null");
@@ -138,11 +185,11 @@ public class SmsaDownloadJpaController {
     }
 
     @GetMapping("/export/csv")
-    public ResponseEntity<InputStreamResource> exportSwiftHeadersToCsv() {
+    public ResponseEntity<InputStreamResource> exportSwiftHeadersToCsv(SwiftMessageHeaderPojo filters) {
         logger.info("Exporting CSV zip");
         try {
             String path = System.getProperty("java.io.tmpdir");
-            String filePath = csvExportService.exportSwiftHeadersToZip(path);
+            String filePath = csvExportService.exportSwiftHeadersToZip(path, filters);
             File zipFile = new File(filePath);
 
             if (!zipFile.exists()) {
@@ -163,11 +210,5 @@ public class SmsaDownloadJpaController {
             logger.error("Error exporting CSV zip", e);
             return ResponseEntity.status(500).build();
         }
-    }
-
-    @GetMapping
-    public String hello() {
-        logger.info("Health check endpoint hit");
-        return "Dashboard Application Deployed in Server";
     }
 }

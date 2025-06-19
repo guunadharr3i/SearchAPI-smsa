@@ -8,6 +8,7 @@ package com.smsa.Service;
  *
  * @author abcom
  */
+import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.repository.SwiftMessageHeaderRepository;
 
@@ -31,10 +32,13 @@ public class SwiftMessageExportService {
     @Autowired
     private SwiftMessageHeaderRepository repository;
 
-    public String exportSwiftHeadersToZip(String folderPath) throws IOException {
+    @Autowired
+    private SwiftMessageService swiftMessageService;
+
+    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderPojo filters) throws IOException {
         log.info("Starting SwiftMessageHeader export...");
 
-        List<SwiftMessageHeader> headers = repository.findAll();
+        List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
         if (headers.isEmpty()) {
             log.warn("No SwiftMessageHeader records found. Aborting export.");
             return null;
@@ -51,30 +55,28 @@ public class SwiftMessageExportService {
         log.info("Expected number of XLSX files: {}", totalFiles);
 
         File tempDir = new File(folderPath, "temp_xls_" + System.currentTimeMillis());
-        if (!tempDir.exists()) tempDir.mkdirs();
+        if (!tempDir.exists()) {
+            tempDir.mkdirs();
+        }
         log.info("Created temporary directory: {}", tempDir.getAbsolutePath());
 
         int fileCount = 1;
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
-            List<SwiftMessageHeader> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
+            List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
             Workbook workbook = createWorkbookWithHeaders();
             Sheet sheet = workbook.getSheetAt(0);
 
             int rowNum = 1;
-            for (SwiftMessageHeader header : chunk) {
+            for (SwiftMessageHeaderPojo header : chunk) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(safeLong(header.getId()));
+                row.createCell(0).setCellValue(safeLong(header.getMessageId()));
                 row.createCell(1).setCellValue(safe(header.getFileName()));
                 row.createCell(2).setCellValue(safe(header.getDate()));
                 row.createCell(3).setCellValue(safe(header.getTime()));
                 row.createCell(4).setCellValue(safeInt(header.getMtCode()));
                 row.createCell(5).setCellValue(safeInt(header.getPage()));
-                row.createCell(6).setCellValue(safe(header.getRawMessageData()));
-                row.createCell(7).setCellValue(safe(header.getInstanceRaw()));
-                row.createCell(8).setCellValue(safe(header.getHeaderRaw()));
                 row.createCell(9).setCellValue(safe(header.getPriority()));
                 row.createCell(10).setCellValue(safe(header.getFileType()));
-                row.createCell(11).setCellValue(safe(header.getSmsaHeaderObj()));
                 row.createCell(12).setCellValue(safe(header.getInputRefNo()));
                 row.createCell(13).setCellValue(safe(header.getOutputRefNo()));
                 row.createCell(14).setCellValue(safe(header.getInpOut()));
@@ -82,9 +84,7 @@ public class SwiftMessageExportService {
                 row.createCell(16).setCellValue(safe(header.getMsgType()));
                 row.createCell(17).setCellValue(safe(header.getSlaId()));
                 row.createCell(18).setCellValue(safe(header.getSenderBic()));
-                row.createCell(19).setCellValue(safe(header.getSenderObj()));
                 row.createCell(20).setCellValue(safe(header.getSenderBicDesc()));
-                row.createCell(21).setCellValue(safe(header.getReceiverobj()));
                 row.createCell(22).setCellValue(safe(header.getReceiverBic()));
                 row.createCell(23).setCellValue(safe(header.getReceiverBicDesc()));
                 row.createCell(24).setCellValue(safe(header.getUserRef()));
@@ -110,8 +110,7 @@ public class SwiftMessageExportService {
         String zipFilePath = folderPath + "/swift_headers_export.zip";
         log.info("Zipping files into: {}", zipFilePath);
 
-        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
-             ZipOutputStream zos = new ZipOutputStream(fos)) {
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath); ZipOutputStream zos = new ZipOutputStream(fos)) {
 
             File[] files = tempDir.listFiles((dir, name) -> name.endsWith(".xlsx"));
             if (files != null) {
@@ -154,10 +153,10 @@ public class SwiftMessageExportService {
 
         String[] headers = {
             "SMSA_MESSAGE_ID", "SMSA_FILE_NAME", "SMSA_DATE", "SMSA_TIME", "SMSA_MT_CODE",
-            "SMSA_PAGE", "SMSA_RAW_DATA", "SMSA_INST_RAW", "SMSA_HDR_RAW", "SMSA_PRIORITY",
-            "SMSA_FILE_TYPE", "SMSA_HDR_TEXT", "SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
+            "SMSA_PAGE", "SMSA_PRIORITY",
+            "SMSA_FILE_TYPE", "SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
             "SMSA_MSG_IO", "SMSA_MSG_DESC", "SMSA_MSG_TYPE", "SMSA_SLA_ID", "SMSA_SENDER_BIC",
-            "SMSA_SENDER_OBJ", "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_OBJ", "SMSA_RECEIVER_BIC",
+             "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_BIC",
             "SMSA_RECEIVER_BIC_DESC", "SMSA_USER_REF", "SMSA_TXN_REF", "SMSA_FILE_DATE",
             "SMSA_MUR", "SMSA_UETR"
         };
@@ -169,14 +168,14 @@ public class SwiftMessageExportService {
         return workbook;
     }
 
-    private int estimateRowSize(SwiftMessageHeader h) {
-        String raw = safeLong(h.getId()) + safe(h.getFileName()) + safe(h.getDate()) + safe(h.getTime()) + safeInt(h.getMtCode()) +
-                     safeInt(h.getPage()) + safe(h.getRawMessageData()) + safe(h.getInstanceRaw()) + safe(h.getHeaderRaw()) + safe(h.getPriority()) +
-                     safe(h.getFileType()) + safe(h.getSmsaHeaderObj()) + safe(h.getInputRefNo()) + safe(h.getOutputRefNo()) +
-                     safe(h.getInpOut()) + safe(h.getMsgDesc()) + safe(h.getMsgType()) + safe(h.getSlaId()) + safe(h.getSenderBic()) +
-                     safe(h.getSenderObj()) + safe(h.getSenderBicDesc()) + safe(h.getReceiverobj()) + safe(h.getReceiverBic()) +
-                     safe(h.getReceiverBicDesc()) + safe(h.getUserRef()) + safe(h.getTransactionRef()) + safe(h.getFileDate()) +
-                     safe(h.getMur()) + safe(h.getUetr());
+    private int estimateRowSize(SwiftMessageHeaderPojo h) {
+        String raw = safeLong(h.getMessageId()) + safe(h.getFileName()) + safe(h.getDate()) + safe(h.getTime()) + safeInt(h.getMtCode())
+                + safeInt(h.getPage()) + safe(h.getPriority())
+                + safe(h.getFileType()) + safe(h.getInputRefNo()) + safe(h.getOutputRefNo())
+                + safe(h.getInpOut()) + safe(h.getMsgDesc()) + safe(h.getMsgType()) + safe(h.getSlaId()) + safe(h.getSenderBic())
+                + safe(h.getSenderBicDesc()) + safe(h.getReceiverBic())
+                + safe(h.getReceiverBicDesc()) + safe(h.getUserRef()) + safe(h.getTransactionRef()) + safe(h.getFileDate())
+                + safe(h.getMur()) + safe(h.getUetr());
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
 
@@ -192,4 +191,3 @@ public class SwiftMessageExportService {
         return l == null ? "" : l.toString();
     }
 }
-

@@ -9,6 +9,7 @@ package com.smsa.Service;
  * @author abcom
  */
 
+import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.repository.SwiftMessageHeaderRepository;
 
@@ -37,11 +38,14 @@ public class SwiftMessageExportTxtService {
 
     @Autowired
     private SwiftMessageHeaderRepository repository;
+    
+    @Autowired
+    private SwiftMessageService swiftMessageService;
 
-    public File exportTxtZip(String baseDirPath) throws IOException {
+    public File exportTxtZip(String baseDirPath,SwiftMessageHeaderPojo filters) throws IOException {
         log.info("Starting export of SwiftMessageHeaders to TXT and ZIP format...");
 
-        List<SwiftMessageHeader> records = repository.findAll();
+        List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
         if (records.isEmpty()) {
             log.warn("No SwiftMessageHeader records found.");
             return null;
@@ -60,7 +64,7 @@ public class SwiftMessageExportTxtService {
         List<StringBuilder> chunks = new ArrayList<>();
         StringBuilder currentChunk = new StringBuilder();
 
-        for (SwiftMessageHeader record : records) {
+        for (SwiftMessageHeaderPojo record : records) {
             String formatted = formatRecord(record);
             byte[] lineBytes = formatted.getBytes(StandardCharsets.UTF_8);
 
@@ -122,7 +126,7 @@ public class SwiftMessageExportTxtService {
         return zipFile;
     }
 
-    private String formatRecord(SwiftMessageHeader h) {
+    private String formatRecord(SwiftMessageHeaderPojo h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
         DateTimeFormatter inputTimeParser = DateTimeFormatter.ofPattern("HHmmss");
         DateTimeFormatter outputTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
@@ -139,7 +143,7 @@ public class SwiftMessageExportTxtService {
                 LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
                 timeStr = parsedTime.format(outputTimeFormatter);
             } catch (DateTimeParseException e) {
-                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getId());
+                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
                 timeStr = h.getTime();
             }
         }
@@ -155,22 +159,22 @@ public class SwiftMessageExportTxtService {
         sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
         sb.append("Text :- \n");
 
-        if (h.getInstanceRaw() != null && !h.getInstanceRaw().trim().isEmpty()) {
-            sb.append(h.getInstanceRaw().trim()).append("\n");
-        }
+//        if (h.getInstanceRaw() != null && !h.getInstanceRaw().trim().isEmpty()) {
+//            sb.append(h.getInstanceRaw().trim()).append("\n");
+//        }
+//
+//        if (h.getHeaderRaw() != null && !h.getHeaderRaw().trim().isEmpty()) {
+//            sb.append(h.getHeaderRaw().trim()).append("\n");
+//        }
 
-        if (h.getHeaderRaw() != null && !h.getHeaderRaw().trim().isEmpty()) {
-            sb.append(h.getHeaderRaw().trim()).append("\n");
-        }
-
-        sb.append("-----------------Message Text -------------------\n");
-
-        if (h.getRawMessageData() != null && !h.getRawMessageData().trim().isEmpty()) {
-            String cleanedMessageText = extractMessageTextSection(h.getRawMessageData());
-            if (!cleanedMessageText.trim().isEmpty()) {
-                sb.append(cleanedMessageText).append("\n");
-            }
-        }
+//        sb.append("-----------------Message Text -------------------\n");
+//
+//        if (h.getRawMessageData() != null && !h.getRawMessageData().trim().isEmpty()) {
+//            String cleanedMessageText = extractMessageTextSection(h.getRawMessageData());
+//            if (!cleanedMessageText.trim().isEmpty()) {
+//                sb.append(cleanedMessageText).append("\n");
+//            }
+//        }
 
         sb.append("------------------------------------\n");
         return sb.toString();
