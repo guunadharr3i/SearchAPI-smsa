@@ -122,6 +122,6 @@ public class SwiftMessageController {
     @GetMapping
     public String hello() {
         logger.info("Health check called at root endpoint.");
-        return "Deployment Successful";
+        return "Hey Developer! I am SMSA Search api,My Deployment Successful";
     }
 }

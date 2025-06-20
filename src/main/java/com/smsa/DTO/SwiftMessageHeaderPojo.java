@@ -17,7 +17,7 @@ public class SwiftMessageHeaderPojo {
 
     private String fileName;
 
-    private LocalDateTime date;
+    private LocalDate date;
     private String time;
     private Integer mtCode;
 
@@ -54,9 +54,8 @@ public class SwiftMessageHeaderPojo {
     private LocalDate fileDate;
     private String mur;
     private String uetr;
-    private LocalDate fileDateFrom;
-private LocalDate fileDateTo;
-
+    private LocalDate dateFrom;
+    private LocalDate dateTo;
 
     /**
      * @return the messageId
@@ -89,14 +88,14 @@ private LocalDate fileDateTo;
     /**
      * @return the date
      */
-    public LocalDateTime getDate() {
+    public LocalDate getDate() {
         return date;
     }
 
     /**
      * @param date the date to set
      */
-    public void setDate(LocalDateTime date) {
+    public void setDate(LocalDate date) {
         this.date = date;
     }
 
@@ -379,5 +378,34 @@ private LocalDate fileDateTo;
     public void setUetr(String uetr) {
         this.uetr = uetr;
     }
+
+    /**
+     * @return the dateFrom
+     */
+    public LocalDate getDateFrom() {
+        return dateFrom;
+    }
+
+    /**
+     * @param dateFrom the dateFrom to set
+     */
+    public void setDateFrom(LocalDate dateFrom) {
+        this.dateFrom = dateFrom;
+    }
+
+    /**
+     * @return the dateTo
+     */
+    public LocalDate getDateTo() {
+        return dateTo;
+    }
+
+    /**
+     * @param dateTo the dateTo to set
+     */
+    public void setDateTo(LocalDate dateTo) {
+        this.dateTo = dateTo;
+    }
+
 
 }

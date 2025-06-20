@@ -185,30 +185,37 @@ public class SmsaDownloadJpaController {
     }
 
     @GetMapping("/export/csv")
-    public ResponseEntity<InputStreamResource> exportSwiftHeadersToCsv(SwiftMessageHeaderPojo filters) {
-        logger.info("Exporting CSV zip");
-        try {
-            String path = System.getProperty("java.io.tmpdir");
-            String filePath = csvExportService.exportSwiftHeadersToZip(path, filters);
-            File zipFile = new File(filePath);
+public ResponseEntity<?> exportSwiftHeadersToCsv(SwiftMessageHeaderPojo filters) {
+    logger.info("Exporting CSV zip");
+    try {
+        String path = System.getProperty("java.io.tmpdir");
+        String filePath = csvExportService.exportSwiftHeadersToZip(path, filters);
 
-            if (!zipFile.exists()) {
-                logger.warn("CSV zip not found at {}", filePath);
-                return ResponseEntity.status(404).build();
-            }
-
-            InputStreamResource resource = new InputStreamResource(new FileInputStream(zipFile));
-            logger.info("CSV zip file exported: {}", zipFile.getAbsolutePath());
-
-            return ResponseEntity.ok()
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=swift_csv_export.zip")
-                    .contentLength(zipFile.length())
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
-                    .body(resource);
-
-        } catch (IOException e) {
-            logger.error("Error exporting CSV zip", e);
-            return ResponseEntity.status(500).build();
+        if (filePath == null || filePath.isEmpty()) {
+            logger.warn("CSV zip generation failed: No records found.");
+            return ResponseEntity.status(404).body("No records found to export.");
         }
+
+        File zipFile = new File(filePath);
+
+        if (!zipFile.exists()) {
+            logger.warn("CSV zip not found at {}", filePath);
+            return ResponseEntity.status(404).body("Exported file not found.");
+        }
+
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(zipFile));
+        logger.info("CSV zip file exported: {}", zipFile.getAbsolutePath());
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=swift_csv_export.zip")
+                .contentLength(zipFile.length())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+
+    } catch (IOException e) {
+        logger.error("Error exporting CSV zip", e);
+        return ResponseEntity.status(500).body("Internal Server Error while exporting file.");
     }
+}
+
 }

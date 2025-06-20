@@ -18,6 +18,7 @@ import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -188,31 +189,37 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     @Override
     public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters) {
-         List<SwiftMessageHeader> resultList = new ArrayList<>();
-        long totalCount = 0;
+    List<SwiftMessageHeaderPojo> pojoList = new ArrayList<>();
 
-        try {
-            CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+    try {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-            CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
-            Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
-            List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
+        CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
+        Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
+        List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
 
-            query.select(root).distinct(true);
-            if (!predicates.isEmpty()) {
-                query.where(cb.and(predicates.toArray(new Predicate[0])));
-            }
-
-            TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
-            resultList = typedQuery.getResultList();
-        } catch (Exception e) {
-            logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
+        query.select(root).distinct(true);
+        if (!predicates.isEmpty()) {
+            query.where(cb.and(predicates.toArray(new Predicate[0])));
         }
 
-        List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
+        TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
+
+        // If using a relational DB, this helps JDBC layer.
+        typedQuery.setHint("org.hibernate.fetchSize", 1000);
+
+        // Stream processing — better memory usage
+        try (Stream<SwiftMessageHeader> stream = typedQuery.getResultStream()) {
+            pojoList = stream
                 .map(this::mapToPojo)
                 .collect(Collectors.toList());
+        }
 
-        return pojoList;
+    } catch (Exception e) {
+        logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
     }
+
+    return pojoList;
+}
+
 }

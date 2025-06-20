@@ -21,7 +21,7 @@ public class SwiftMessageHeader implements Serializable{
     private String fileName;
 
     @Column(name = "SMSA_DATE")
-    private LocalDateTime date;
+    private LocalDate date;
     @Column(name = "SMSA_TIME")
     private String time;
     @Column(name = "SMSA_MT_CODE")
@@ -163,7 +163,7 @@ public class SwiftMessageHeader implements Serializable{
      * @return date @Column(name = "SMSA_DATE")
 
      */
-    public LocalDateTime getDate() {
+    public LocalDate getDate() {
         return this.date;
     }
 
@@ -173,7 +173,7 @@ public class SwiftMessageHeader implements Serializable{
      * @param date @Column(name = "SMSA_DATE")
 
      */
-    public void setDate(LocalDateTime date) {
+    public void setDate(LocalDate date) {
         this.date = date;
     }
 
