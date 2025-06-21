@@ -94,7 +94,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 field.setAccessible(true);
                 Object value = field.get(filter);
 
-                if (value != null) {
+                if (value != null && !value.toString().isEmpty()) {
                     String fieldName = field.getName();
 
                     // Handle "From" and "To" suffix for ranges
@@ -209,7 +209,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         typedQuery.setHint("org.hibernate.fetchSize", 1000);
 
         // Stream processing — better memory usage
-        try (Stream<SwiftMessageHeader> stream = typedQuery.getResultStream()) {
+        try (Stream<SwiftMessageHeader> stream = typedQuery.getResultList().stream()) {
             pojoList = stream
                 .map(this::mapToPojo)
                 .collect(Collectors.toList());
