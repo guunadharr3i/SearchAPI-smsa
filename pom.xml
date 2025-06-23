@@ -97,6 +97,26 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.3</version>
         </dependency>
+        <!-- FULL schemas support (needed for SharedStringsTable, etc.) -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml-full</artifactId>
+            <version>5.2.3</version>
+        </dependency>
+
+        <!-- XMLBeans (required for OOXML) -->
+        <dependency>
+            <groupId>org.apache.xmlbeans</groupId>
+            <artifactId>xmlbeans</artifactId>
+            <version>5.1.1</version>
+        </dependency>
+
+        <!-- Optional but recommended (for compressing ZIP/XLSX) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.21</version>
+        </dependency>
 
         <!-- PDFBox -->
         <dependency>
