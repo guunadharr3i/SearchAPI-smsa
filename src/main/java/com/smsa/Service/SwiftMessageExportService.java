@@ -9,8 +9,6 @@ package com.smsa.Service;
  * @author abcom
  */
 import com.smsa.DTO.SwiftMessageHeaderPojo;
-import com.smsa.entity.SwiftMessageHeader;
-import com.smsa.repository.SwiftMessageHeaderRepository;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -29,8 +27,6 @@ public class SwiftMessageExportService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportService.class);
 
-    @Autowired
-    private SwiftMessageHeaderRepository repository;
 
     @Autowired
     private SwiftMessageService swiftMessageService;
