@@ -38,10 +38,10 @@ public class SwiftMessageController {
         logger.info("Received request to /searchApi with filter: {}, page: {}, size: {}", filter, page, size);
 
         try {
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+//            if (accessToken == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
+//            }
 
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
@@ -49,7 +49,7 @@ public class SwiftMessageController {
             logger.info("Filtered messages retrieved successfully, count: {}", pagedResult.getTotalElements());
 
             Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("accessToken", accessToken);
+            //responseBody.put("accessToken", accessToken);
             responseBody.put("messages", pagedResult.getContent());
             responseBody.put("totalPages", pagedResult.getTotalPages());
             responseBody.put("totalElements", pagedResult.getTotalElements());

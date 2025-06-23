@@ -74,10 +74,10 @@ public class SmsaDownloadJpaController {
         logger.info("Received request to /download with filter: {} and downloadType: {}", filter, downloadType);
 
         try {
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+//            if (accessToken == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
+//            }
             switch (downloadType.toUpperCase()) {
                 case "XLSX":
                     return exportSwiftHeadersToExcel(filter.getFilter());
