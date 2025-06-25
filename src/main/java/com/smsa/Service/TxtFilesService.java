@@ -46,9 +46,9 @@ public class TxtFilesService {
         logger.info("Creating file at: {}", txtFile.getAbsolutePath());
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(txtFile))) {
-            for (SwiftMessageHeader record : records) {
-                logger.debug("Writing record with transactionRef: {}", record.getTransactionRef());
-                writer.write(formatRecord(record));
+            for (SwiftMessageHeader header : records) {
+                logger.debug("Writing record with transactionRef: {}", header.getTransactionRef());
+                writer.write(formatRecord(header));
                 writer.newLine(); // extra space between records
             }
             logger.info("Successfully wrote {} records to TXT file.", records.size());
@@ -62,7 +62,6 @@ public class TxtFilesService {
 
     private String formatRecord(SwiftMessageHeader h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
         String timeStr = (h.getTime() != null) ? h.getTime() : "";
@@ -78,19 +77,19 @@ public class TxtFilesService {
         sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
         sb.append("Text :- \n");
 
-        if (notBlank(h.getInstanceRaw()))
-            sb.append(h.getInstanceRaw().trim()).append("\n");
-
-        if (notBlank(h.getHeaderRaw()))
-            sb.append(h.getHeaderRaw().trim()).append("\n");
-
-        sb.append("-----------------Message Text -------------------\n");
-
-        if (notBlank(h.getRawMessageData())) {
-            String cleaned = extractMessageTextSection(h.getRawMessageData());
-            if (notBlank(cleaned))
-                sb.append(cleaned).append("\n");
-        }
+//        if (notBlank(h.getInstanceRaw()))
+//            sb.append(h.getInstanceRaw().trim()).append("\n");
+//
+//        if (notBlank(h.getHeaderRaw()))
+//            sb.append(h.getHeaderRaw().trim()).append("\n");
+//
+//        sb.append("-----------------Message Text -------------------\n");
+//
+//        if (notBlank(h.getRawMessageData())) {
+//            String cleaned = extractMessageTextSection(h.getRawMessageData());
+//            if (notBlank(cleaned))
+//                sb.append(cleaned).append("\n");
+//        }
 
         sb.append("------------------------------------\n");
         return sb.toString();

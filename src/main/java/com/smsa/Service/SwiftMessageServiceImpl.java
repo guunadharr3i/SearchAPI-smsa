@@ -3,12 +3,17 @@ package com.smsa.Service;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.repository.SwiftMessageHeaderRepository;
-import java.lang.reflect.Field;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
+import java.util.List;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
@@ -88,33 +93,33 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     private List<Predicate> buildDynamicPredicates(SwiftMessageHeaderPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         List<Predicate> predicates = new ArrayList<>();
 
-        Field[] fields = SwiftMessageHeaderPojo.class.getDeclaredFields();
-        for (Field field : fields) {
-            try {
-                field.setAccessible(true);
-                Object value = field.get(filter);
+        try {
+            for (PropertyDescriptor pd : Introspector.getBeanInfo(SwiftMessageHeaderPojo.class).getPropertyDescriptors()) {
+                String fieldName = pd.getName();
 
-                if (value != null && !value.toString().isEmpty()) {
-                    String fieldName = field.getName();
-
-                    // Handle "From" and "To" suffix for ranges
-                    if (fieldName.endsWith("From") && value instanceof Comparable) {
-                        String baseField = fieldName.replace("From", "");
-                        predicates.add(cb.greaterThanOrEqualTo(root.get(baseField), (Comparable) value));
-                    } else if (fieldName.endsWith("To") && value instanceof Comparable) {
-                        String baseField = fieldName.replace("To", "");
-                        predicates.add(cb.lessThanOrEqualTo(root.get(baseField), (Comparable) value));
-                    } // Normal string LIKE search
-                    else if (value instanceof String && !((String) value).trim().isEmpty()) {
-                        predicates.add(cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(((String) value).toLowerCase()) + "%"));
-                    } // EQUAL for non-strings
-                    else if (!(value instanceof String)) {
-                        predicates.add(cb.equal(root.get(fieldName), value));
-                    }
+                if ("class".equals(fieldName)) {
+                    continue;
                 }
-            } catch (IllegalAccessException | IllegalArgumentException e) {
-                logger.warn("Could not access field: {}", field.getName(), e);
+
+                Object value = pd.getReadMethod().invoke(filter);
+                if (value == null || value.toString().isEmpty()) {
+                    continue;
+                }
+
+                if (fieldName.endsWith("From") && value instanceof Comparable) {
+                    String baseField = fieldName.replace("From", "");
+                    predicates.add(cb.greaterThanOrEqualTo(root.get(baseField), (Comparable) value));
+                } else if (fieldName.endsWith("To") && value instanceof Comparable) {
+                    String baseField = fieldName.replace("To", "");
+                    predicates.add(cb.lessThanOrEqualTo(root.get(baseField), (Comparable) value));
+                } else if (value instanceof String && !((String) value).trim().isEmpty()) {
+                    predicates.add(cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(((String) value).toLowerCase()) + "%"));
+                } else if (!(value instanceof String)) {
+                    predicates.add(cb.equal(root.get(fieldName), value));
+                }
             }
+        } catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
+            logger.error("Error building dynamic predicates", e);
         }
 
         return predicates;
@@ -150,8 +155,11 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     }
 
     @Override
-    public List<SwiftMessageHeader> getFullData() {
-        return repository.findAll();
+    public List<SwiftMessageHeaderPojo> getFullData() {
+        return repository.findTop5ByOrderByDateDesc()
+                .stream()
+                .map(this::mapToPojo)
+                .collect(Collectors.toList());
     }
 
     public long totalRecords() {
@@ -189,37 +197,37 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     @Override
     public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters) {
-    List<SwiftMessageHeaderPojo> pojoList = new ArrayList<>();
+        List<SwiftMessageHeaderPojo> pojoList = new ArrayList<>();
 
-    try {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        try {
+            CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-        CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
-        Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
-        List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
+            CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
+            Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
+            List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
 
-        query.select(root).distinct(true);
-        if (!predicates.isEmpty()) {
-            query.where(cb.and(predicates.toArray(new Predicate[0])));
+            query.select(root).distinct(true);
+            if (!predicates.isEmpty()) {
+                query.where(cb.and(predicates.toArray(new Predicate[0])));
+            }
+
+            TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
+
+            // If using a relational DB, this helps JDBC layer.
+            typedQuery.setHint("org.hibernate.fetchSize", 1000);
+
+            // Stream processing — better memory usage
+            try (Stream<SwiftMessageHeader> stream = typedQuery.getResultList().stream()) {
+                pojoList = stream
+                        .map(this::mapToPojo)
+                        .collect(Collectors.toList());
+            }
+
+        } catch (Exception e) {
+            logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
         }
 
-        TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
-
-        // If using a relational DB, this helps JDBC layer.
-        typedQuery.setHint("org.hibernate.fetchSize", 1000);
-
-        // Stream processing — better memory usage
-        try (Stream<SwiftMessageHeader> stream = typedQuery.getResultList().stream()) {
-            pojoList = stream
-                .map(this::mapToPojo)
-                .collect(Collectors.toList());
-        }
-
-    } catch (Exception e) {
-        logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
+        return pojoList;
     }
-
-    return pojoList;
-}
 
 }

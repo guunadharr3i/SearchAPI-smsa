@@ -29,6 +29,10 @@ public class SwiftMessageTrailer implements Serializable{
     @Column(name = "SMSA_RMRK")
     private String remark;
 
+
+    @Column(name = "SMSA_TRL_RAW")
+    private String trailerRaw;
+
     // Optional: link to parent if using bidirectional relationship
     // @ManyToOne
     // @JoinColumn(name = "SMSA_MESSAGE_ID", insertable = false, updatable = false)
@@ -116,5 +120,25 @@ public class SwiftMessageTrailer implements Serializable{
      */
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    /**
+     * get field @Column(name = "SMSA_TRL_RAW")
+     *
+     * @return trailerRaw @Column(name = "SMSA_TRL_RAW")
+
+     */
+    public String getTrailerRaw() {
+        return this.trailerRaw;
+    }
+
+    /**
+     * set field @Column(name = "SMSA_TRL_RAW")
+     *
+     * @param trailerRaw @Column(name = "SMSA_TRL_RAW")
+
+     */
+    public void setTrailerRaw(String trailerRaw) {
+        this.trailerRaw = trailerRaw;
     }
 }

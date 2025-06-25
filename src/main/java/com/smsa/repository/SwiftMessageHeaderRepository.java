@@ -15,4 +15,8 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
 
     @Query("SELECT s FROM SwiftMessageHeader s WHERE s.transactionRef IN :txnRefs")
     List<SwiftMessageHeader> findByTransactionRefIn(@Param("txnRefs") List<String> txnRefs);
+
+   List<SwiftMessageHeader> findTop5ByOrderByDateDesc();
+
+
 }

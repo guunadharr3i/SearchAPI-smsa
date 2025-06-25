@@ -2,8 +2,9 @@ package com.smsa.Controller;
 
 import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.Enums.ErrorCode;
+import com.smsa.ResponseWrappers.ApiResponse;
 import com.smsa.Service.SwiftMessageService;
-import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.tokenValidation.AuthenticateAPi;
 import java.util.HashMap;
 
@@ -30,7 +31,7 @@ public class SwiftMessageController {
     private AuthenticateAPi authenticateApi;
 
     @PostMapping("/searchApi")
-    public ResponseEntity<?> getFilteredMessages(
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getFilteredMessages(
             @RequestBody FilterRequest filter,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -40,35 +41,34 @@ public class SwiftMessageController {
         try {
             String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
             if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
             }
 
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
-            logger.info("Filtered messages retrieved successfully, count: {}", pagedResult.getTotalElements());
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("accessToken", accessToken);
+            responseData.put("messages", pagedResult.getContent());
+            responseData.put("totalPages", pagedResult.getTotalPages());
+            responseData.put("totalElements", pagedResult.getTotalElements());
+            responseData.put("currentPage", pagedResult.getNumber());
 
-            Map<String, Object> responseBody = new HashMap<>();
-            responseBody.put("accessToken", accessToken);
-            responseBody.put("messages", pagedResult.getContent());
-            responseBody.put("totalPages", pagedResult.getTotalPages());
-            responseBody.put("totalElements", pagedResult.getTotalElements());
-            responseBody.put("currentPage", pagedResult.getNumber());
-
-            return ResponseEntity.ok(responseBody);
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, responseData));
 
         } catch (Exception ex) {
             logger.error("Unexpected error: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Unexpected error occurred.");
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
 
-    @GetMapping("/getSmsaData")
+    @GetMapping("/getRecentTransactions")
     public ResponseEntity<?> getFullData() {
-        logger.info("Request received to fetch full SMSA data.");
+        logger.info("Request received to fetch get recent  SMSA data.");
         try {
-            List<SwiftMessageHeader> data = service.getFullData();
+            List<SwiftMessageHeaderPojo> data = service.getFullData();
             logger.info("Successfully fetched {} SMSA records.", data.size());
             return ResponseEntity.ok(data);
         } catch (Exception e) {

@@ -9,8 +9,6 @@ package com.smsa.Service;
  * @author abcom
  */
 import com.smsa.DTO.SwiftMessageHeaderPojo;
-import com.smsa.entity.SwiftMessageHeader;
-import com.smsa.repository.SwiftMessageHeaderRepository;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -19,6 +17,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -30,9 +29,6 @@ import org.springframework.stereotype.Service;
 public class SwiftMessageCsvExportService {
 
     private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(SwiftMessageCsvExportService.class);
-
-    @Autowired
-    private SwiftMessageHeaderRepository repository;
 
     @Autowired
     private SwiftMessageService swiftMessageService;
@@ -48,17 +44,33 @@ public class SwiftMessageCsvExportService {
             return null;
         }
 
-        int estimatedRowSize = estimateRowSize(headers.get(0)) + 300;
-        int maxFileSizeBytes = 150 * 1024; // 150KB
-        int rowsPerFile = Math.max(1, (int) (maxFileSizeBytes * 0.9 / estimatedRowSize));
+        int rowsPerFile = calculateRowsPerFile(headers.get(0));
+        File tempDir = prepareTempDirectory(folderPath);
 
-        logger.info("Estimated row size: {} bytes, rows per file: {}", estimatedRowSize, rowsPerFile);
+        writeCsvFiles(headers, tempDir, rowsPerFile);
+        String zipFilePath = folderPath + "/swift_headers_export_csv.zip";
+        zipCsvFiles(tempDir, zipFilePath);
+        cleanUpTempFiles(tempDir);
 
+        logger.info("Export complete: {}", zipFilePath);
+        return zipFilePath;
+    }
+
+    private int calculateRowsPerFile(SwiftMessageHeaderPojo sample) {
+        int estimatedRowSize = estimateRowSize(sample) + 300;
+        int maxFileSizeBytes = 1024 * 1024; // 1MB
+        return Math.max(1, (int) (maxFileSizeBytes * 0.9 / estimatedRowSize));
+    }
+
+    private File prepareTempDirectory(String folderPath) {
         File tempDir = new File(folderPath, "temp_csv");
         if (!tempDir.exists() && tempDir.mkdirs()) {
             logger.info("Created temp directory at {}", tempDir.getAbsolutePath());
         }
+        return tempDir;
+    }
 
+    private void writeCsvFiles(List<SwiftMessageHeaderPojo> headers, File tempDir, int rowsPerFile) throws IOException {
         int fileCount = 1;
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
             List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
@@ -75,74 +87,84 @@ public class SwiftMessageCsvExportService {
                 throw e;
             }
         }
+    }
 
-        String zipFilePath = folderPath + "/swift_headers_export_csv.zip";
-        logger.info("Zipping files into: {}", zipFilePath);
-
+    private void zipCsvFiles(File tempDir, String zipFilePath) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(zipFilePath); ZipOutputStream zos = new ZipOutputStream(fos)) {
 
             File[] files = tempDir.listFiles((dir, name) -> name.endsWith(".csv"));
             if (files != null) {
                 for (File file : files) {
-                    logger.info("Adding to zip: {}", file.getName());
-                    try (FileInputStream fis = new FileInputStream(file)) {
-                        zos.putNextEntry(new ZipEntry(file.getName()));
-                        byte[] buffer = new byte[1024];
-                        int len;
-                        while ((len = fis.read(buffer)) > 0) {
-                            zos.write(buffer, 0, len);
-                        }
-                        zos.closeEntry();
-                    } catch (IOException e) {
-                        logger.error("Error adding file to zip: {}", file.getName(), e);
-                        throw e;
-                    }
+                    addFileToZip(file, zos);
                 }
             }
+        }
+    }
+
+    private void addFileToZip(File file, ZipOutputStream zos) throws IOException {
+        logger.info("Adding to zip: {}", file.getName());
+        try (FileInputStream fis = new FileInputStream(file)) {
+            zos.putNextEntry(new ZipEntry(file.getName()));
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = fis.read(buffer)) > 0) {
+                zos.write(buffer, 0, len);
+            }
+            zos.closeEntry();
         } catch (IOException e) {
-            logger.error("Error creating zip file", e);
+            logger.error("Error adding file to zip: {}", file.getName(), e);
             throw e;
         }
+    }
 
+    private void cleanUpTempFiles(File tempDir) {
         logger.info("Cleaning up temp CSV files");
-        for (File f : tempDir.listFiles()) {
-            boolean deleted = f.delete();
-            if (!deleted) {
-                logger.warn("Failed to delete file: {}", f.getAbsolutePath());
+
+        File[] files = tempDir.listFiles();
+        if (files != null) {
+            for (File f : files) {
+                try {
+                    Files.delete(f.toPath());
+                } catch (IOException e) {
+                    logger.warn("Failed to delete file: {}", f.getAbsolutePath(), e);
+                }
             }
         }
-        boolean dirDeleted = tempDir.delete();
-        if (!dirDeleted) {
-            logger.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath());
-        }
 
-        logger.info("Export complete: {}", zipFilePath);
-        return zipFilePath;
+        try {
+            Files.delete(tempDir.toPath());
+        } catch (IOException e) {
+            logger.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath(), e);
+        }
     }
 
     private void writeCsvHeader(BufferedWriter writer) throws IOException {
-        writer.write(String.join(",", new String[]{
-            "SMSA_MESSAGE_ID", "SMSA_FILE_NAME", "SMSA_DATE", "SMSA_TIME", "SMSA_MT_CODE",
-            "SMSA_PAGE", "SMSA_PRIORITY",
-            "SMSA_FILE_TYPE","SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
-            "SMSA_MSG_IO", "SMSA_MSG_DESC", "SMSA_MSG_TYPE", "SMSA_SLA_ID", "SMSA_SENDER_BIC",
-            "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_BIC",
-            "SMSA_RECEIVER_BIC_DESC", "SMSA_USER_REF", "SMSA_TXN_REF", "SMSA_FILE_DATE",
-            "SMSA_MUR", "SMSA_UETR"
-        }));
+        writer.write(String.join(",",
+                "SMSA_MESSAGE_ID", "SMSA_FILE_NAME", "SMSA_DATE", "SMSA_TIME", "SMSA_MT_CODE",
+                "SMSA_PAGE", "SMSA_PRIORITY",
+                "SMSA_FILE_TYPE", "SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
+                "SMSA_MSG_IO", "SMSA_MSG_DESC", "SMSA_MSG_TYPE", "SMSA_SLA_ID", "SMSA_SENDER_BIC",
+                "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_BIC",
+                "SMSA_RECEIVER_BIC_DESC", "SMSA_USER_REF", "SMSA_TXN_REF", "SMSA_FILE_DATE",
+                "SMSA_MUR", "SMSA_UETR", "SMSA_TXN_AMOUNT", "SMSA_TXN_RESULT", "SMSA_PRIMARY_FMT", "SMSA_SECONDARY_FMT",
+                "SMSA_MSG_CURRENCY"
+        ));
+
         writer.newLine();
     }
 
     private void writeCsvRow(BufferedWriter writer, SwiftMessageHeaderPojo h) throws IOException {
-        writer.write(String.join(",", new String[]{
-            csv(h.getMessageId()), csv(h.getFileName()), csv(h.getDate()), csv(h.getTime()), csv(h.getMtCode()),
-            csv(h.getPage()), csv(h.getPriority()),
-            csv(h.getFileType()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
-            csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
-            csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
-            csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-            csv(h.getMur()), csv(h.getUetr())
-        }));
+        writer.write(String.join(",",
+                csv(h.getMessageId()), csv(h.getFileName()), csv(h.getDate()), csv(h.getTime()), csv(h.getMtCode()),
+                csv(h.getPage()), csv(h.getPriority()),
+                csv(h.getFileType()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
+                csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
+                csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
+                csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
+                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
+                csv(h.getSecondaryFormat()), csv(h.getCurrency())
+        ));
+
         writer.newLine();
     }
 
@@ -162,7 +184,8 @@ public class SwiftMessageCsvExportService {
                 csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
                 csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
                 csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-                csv(h.getMur()), csv(h.getUetr())
+                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
+                csv(h.getSecondaryFormat()), csv(h.getCurrency())
         );
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
