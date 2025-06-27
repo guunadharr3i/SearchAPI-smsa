@@ -65,9 +65,14 @@ public class SwiftMessageController {
     }
 
     @GetMapping("/getRecentTransactions")
-    public ResponseEntity<?> getFullData() {
+    public ResponseEntity<?> getFullData(@RequestBody FilterRequest filter) {
         logger.info("Request received to fetch get recent  SMSA data.");
         try {
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            if (accessToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
+            }
             List<SwiftMessageHeaderPojo> data = service.getFullData();
             logger.info("Successfully fetched {} SMSA records.", data.size());
             return ResponseEntity.ok(data);
