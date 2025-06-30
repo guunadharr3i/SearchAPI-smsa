@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessageHeader, String> {
+public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessageHeader, Long> {
 
     @Query("SELECT s.inpOut, COUNT(s) FROM SwiftMessageHeader s GROUP BY s.inpOut")
     List<Object[]> countBySmsaMsgIoGroup();

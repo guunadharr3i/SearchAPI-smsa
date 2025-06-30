@@ -28,6 +28,7 @@ public class SwiftMessageExportService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportService.class);
 
+
     @Autowired
     private SwiftMessageService swiftMessageService;
 
