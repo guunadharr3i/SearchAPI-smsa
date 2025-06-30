@@ -8,9 +8,7 @@ package com.smsa.Service;
  *
  * @author abcom
  */
-
 import com.smsa.DTO.SwiftMessageHeaderPojo;
-import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.repository.SwiftMessageHeaderRepository;
 
 import java.io.File;
@@ -18,6 +16,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -38,11 +37,11 @@ public class SwiftMessageExportTxtService {
 
     @Autowired
     private SwiftMessageHeaderRepository repository;
-    
+
     @Autowired
     private SwiftMessageService swiftMessageService;
 
-    public File exportTxtZip(String baseDirPath,SwiftMessageHeaderPojo filters) throws IOException {
+    public File exportTxtZip(String baseDirPath, SwiftMessageHeaderPojo filters) throws IOException {
         log.info("Starting export of SwiftMessageHeaders to TXT and ZIP format...");
 
         List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
@@ -50,22 +49,34 @@ public class SwiftMessageExportTxtService {
             log.warn("No SwiftMessageHeader records found.");
             return null;
         }
-        log.info("Total records to process: {}", records.size());
 
-        File tempDir = new File(baseDirPath, "txt_chunks");
-        if (!tempDir.exists()) {
-            boolean created = tempDir.mkdirs();
-            if (created) {
-                log.info("Created temporary directory: {}", tempDir.getAbsolutePath());
-            }
+        File tempDir = prepareTempDirectory(baseDirPath, "txt_chunks");
+
+        List<StringBuilder> chunks = splitIntoChunks(records, 1024 * 1024);
+        log.info("Divided data into {} text file chunks.", chunks.size());
+
+        List<File> txtFiles = writeChunksToTxtFiles(tempDir, chunks);
+        File zipFile = zipTextFiles(txtFiles, new File(baseDirPath, "swift_txt_export.zip"));
+        cleanUpTempFiles(txtFiles, tempDir);
+
+        log.info("Export completed successfully. ZIP at: {}", zipFile.getAbsolutePath());
+        return zipFile;
+    }
+
+    private File prepareTempDirectory(String baseDirPath, String folderName) {
+        File tempDir = new File(baseDirPath, folderName);
+        if (!tempDir.exists() && tempDir.mkdirs()) {
+            log.info("Created temporary directory: {}", tempDir.getAbsolutePath());
         }
+        return tempDir;
+    }
 
-        int maxBytes = 10 * 1024; // 10KB
+    private List<StringBuilder> splitIntoChunks(List<SwiftMessageHeaderPojo> records, int maxBytes) {
         List<StringBuilder> chunks = new ArrayList<>();
         StringBuilder currentChunk = new StringBuilder();
 
-        for (SwiftMessageHeaderPojo record : records) {
-            String formatted = formatRecord(record);
+        for (SwiftMessageHeaderPojo header : records) {
+            String formatted = formatRecord(header);
             byte[] lineBytes = formatted.getBytes(StandardCharsets.UTF_8);
 
             if (currentChunk.toString().getBytes(StandardCharsets.UTF_8).length + lineBytes.length > maxBytes) {
@@ -80,22 +91,25 @@ public class SwiftMessageExportTxtService {
             chunks.add(currentChunk);
         }
 
-        log.info("Divided data into {} text file chunks.", chunks.size());
+        return chunks;
+    }
 
-        // Write .txt files
+    private List<File> writeChunksToTxtFiles(File tempDir, List<StringBuilder> chunks) throws IOException {
         List<File> txtFiles = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
             File file = new File(tempDir, "swift_data_" + (i + 1) + ".txt");
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(chunks.get(i).toString().getBytes(StandardCharsets.UTF_8));
-                txtFiles.add(file);
                 log.debug("Written chunk to file: {}", file.getName());
+                txtFiles.add(file);
             }
         }
+        return txtFiles;
+    }
 
-        // Create ZIP
-        File zipFile = new File(baseDirPath, "swift_txt_export.zip");
+    private File zipTextFiles(List<File> txtFiles, File zipFile) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(zipFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
+
             for (File file : txtFiles) {
                 try (FileInputStream fis = new FileInputStream(file)) {
                     zos.putNextEntry(new ZipEntry(file.getName()));
@@ -109,21 +123,22 @@ public class SwiftMessageExportTxtService {
                 }
             }
         }
-        log.info("ZIP file created at: {}", zipFile.getAbsolutePath());
+        return zipFile;
+    }
 
-        // Clean up temp .txt files
-        for (File file : txtFiles) {
-            if (file.delete()) {
-                log.debug("Deleted temporary file: {}", file.getName());
+    private void cleanUpTempFiles(List<File> files, File tempDir) {
+        for (File file : files) {
+            try {
+                Files.delete(file.toPath());
+            } catch (IOException e) {
+                log.warn("Failed to delete file: {}", file.getAbsolutePath(), e);
             }
         }
-
-        if (tempDir.delete()) {
-            log.debug("Deleted temporary directory: {}", tempDir.getAbsolutePath());
+        try {
+            Files.delete(tempDir.toPath());
+        } catch (IOException e) {
+            log.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath(), e);
         }
-
-        log.info("Export completed successfully.");
-        return zipFile;
     }
 
     private String formatRecord(SwiftMessageHeaderPojo h) {
@@ -166,7 +181,6 @@ public class SwiftMessageExportTxtService {
 //        if (h.getHeaderRaw() != null && !h.getHeaderRaw().trim().isEmpty()) {
 //            sb.append(h.getHeaderRaw().trim()).append("\n");
 //        }
-
 //        sb.append("-----------------Message Text -------------------\n");
 //
 //        if (h.getRawMessageData() != null && !h.getRawMessageData().trim().isEmpty()) {
@@ -175,7 +189,6 @@ public class SwiftMessageExportTxtService {
 //                sb.append(cleanedMessageText).append("\n");
 //            }
 //        }
-
         sb.append("------------------------------------\n");
         return sb.toString();
     }
@@ -218,8 +231,12 @@ public class SwiftMessageExportTxtService {
         String[] lines = between.split("\r?\n");
         int start = 0, end = lines.length - 1;
 
-        while (start <= end && lines[start].trim().isEmpty()) start++;
-        while (end >= start && lines[end].trim().isEmpty()) end--;
+        while (start <= end && lines[start].trim().isEmpty()) {
+            start++;
+        }
+        while (end >= start && lines[end].trim().isEmpty()) {
+            end--;
+        }
 
         StringBuilder cleaned = new StringBuilder();
         for (int i = start; i <= end; i++) {
@@ -229,4 +246,3 @@ public class SwiftMessageExportTxtService {
         return cleaned.toString();
     }
 }
-

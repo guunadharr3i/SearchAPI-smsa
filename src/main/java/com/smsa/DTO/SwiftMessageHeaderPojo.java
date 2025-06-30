@@ -4,6 +4,8 @@
  */
 package com.smsa.DTO;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -13,47 +15,36 @@ import java.time.LocalDate;
 public class SwiftMessageHeaderPojo {
 
     private Long messageId;
-
     private String fileName;
-
-    private LocalDate date;
+    private LocalDateTime date;
     private String time;
     private Integer mtCode;
-
     private Integer page;
-
-    private String priority;
-
     private String fileType;
-
+    private String priority;
     private String inputRefNo;
-
     private String outputRefNo;
-
     private String inpOut;
-
     private String msgDesc;
-
     private String msgType;
-
     private String slaId;
-
     private String senderBic;
-
     private String senderBicDesc;
-
     private String receiverBic;
-
     private String receiverBicDesc;
-
     private String userRef;
-
     private String transactionRef;
-
     private LocalDate fileDate;
     private String mur;
     private String uetr;
+    private BigDecimal transactionAmount;
+    private String transactionResult;
+    private String primaryFormat;
+    private String secondaryFormat;
+    private String currency;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private LocalDate dateFrom;
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private LocalDate dateTo;
 
     /**
@@ -87,14 +78,14 @@ public class SwiftMessageHeaderPojo {
     /**
      * @return the date
      */
-    public LocalDate getDate() {
+    public LocalDateTime getDate() {
         return date;
     }
 
     /**
      * @param date the date to set
      */
-    public void setDate(LocalDate date) {
+    public void setDate(LocalDateTime date) {
         this.date = date;
     }
 
@@ -406,5 +397,74 @@ public class SwiftMessageHeaderPojo {
         this.dateTo = dateTo;
     }
 
+    /**
+     * @return the transactionAmount
+     */
+    public BigDecimal getTransactionAmount() {
+        return transactionAmount;
+    }
+
+    /**
+     * @param transactionAmount the transactionAmount to set
+     */
+    public void setTransactionAmount(BigDecimal transactionAmount) {
+        this.transactionAmount = transactionAmount;
+    }
+
+    /**
+     * @return the transactionResult
+     */
+    public String getTransactionResult() {
+        return transactionResult;
+    }
+
+    /**
+     * @param transactionResult the transactionResult to set
+     */
+    public void setTransactionResult(String transactionResult) {
+        this.transactionResult = transactionResult;
+    }
+
+    /**
+     * @return the primaryFormat
+     */
+    public String getPrimaryFormat() {
+        return primaryFormat;
+    }
+
+    /**
+     * @param primaryFormat the primaryFormat to set
+     */
+    public void setPrimaryFormat(String primaryFormat) {
+        this.primaryFormat = primaryFormat;
+    }
+
+    /**
+     * @return the secondaryFormat
+     */
+    public String getSecondaryFormat() {
+        return secondaryFormat;
+    }
+
+    /**
+     * @param secondaryFormat the secondaryFormat to set
+     */
+    public void setSecondaryFormat(String secondaryFormat) {
+        this.secondaryFormat = secondaryFormat;
+    }
+
+    /**
+     * @return the currency
+     */
+    public String getCurrency() {
+        return currency;
+    }
+
+    /**
+     * @param currency the currency to set
+     */
+    public void setCurrency(String currency) {
+        this.currency = currency;
+    }
 
 }

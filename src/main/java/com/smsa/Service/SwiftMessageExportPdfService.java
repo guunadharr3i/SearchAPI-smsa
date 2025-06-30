@@ -110,21 +110,21 @@ public class SwiftMessageExportPdfService {
         sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
         sb.append("Text :- \n");
 
-        if (notBlank(h.getInstanceRaw()))
-            sb.append(h.getInstanceRaw().trim()).append("\n");
-
-        if (notBlank(h.getHeaderRaw()))
-            sb.append(h.getHeaderRaw().trim()).append("\n");
-
-        sb.append("-----------------Message Text -------------------\n");
-
-        if (notBlank(h.getRawMessageData())) {
-            String cleaned = extractMessageTextSection(h.getRawMessageData());
-            if (notBlank(cleaned))
-                sb.append(cleaned).append("\n");
-        }
-
-        sb.append("------------------------------------\n");
+//        if (notBlank(h.()))
+//            sb.append(h.getInstanceRaw().trim()).append("\n");
+//
+//        if (notBlank(h.getHeaderRaw()))
+//            sb.append(h.getHeaderRaw().trim()).append("\n");
+//
+//        sb.append("-----------------Message Text -------------------\n");
+//
+//        if (notBlank(h.getRawMessageData())) {
+//            String cleaned = extractMessageTextSection(h.getRawMessageData());
+//            if (notBlank(cleaned))
+//                sb.append(cleaned).append("\n");
+//        }
+//
+//        sb.append("------------------------------------\n");
         return sb.toString();
     }
 
