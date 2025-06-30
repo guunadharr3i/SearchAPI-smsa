@@ -65,7 +65,7 @@ public class SwiftMessageController {
     }
 
     @GetMapping("/getRecentTransactions")
-    public ResponseEntity<?> getFullData(@RequestBody Map<String, String> token) {
+    public ResponseEntity<?> getFullData(@RequestParam Map<String, String> token) {
         logger.info("Request received to fetch get recent  SMSA data.");
         try {
             String accessToken = authenticateApi.validateAndRefreshToken(token);
@@ -87,5 +87,10 @@ public class SwiftMessageController {
     public String hello() {
         logger.info("Health check called at root endpoint.");
         return "Hey Developer! I am SMSA Search api,My Deployment Successful";
+    }
+
+    @GetMapping("/totalRecords")
+    public List<SwiftMessageHeaderPojo> totalData() {
+        return service.getTotalData();
     }
 }

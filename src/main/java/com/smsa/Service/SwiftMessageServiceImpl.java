@@ -156,9 +156,15 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     @Override
     public List<SwiftMessageHeaderPojo> getFullData() {
-        return repository.findTop5ByOrderByDateDesc()
-                .stream()
+        List<SwiftMessageHeader> entities = repository.findTop5ByOrderByDateDesc();
+
+        if (entities == null || entities.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        return entities.stream()
                 .map(this::mapToPojo)
+                .filter(Objects::nonNull) // handle nulls returned from mapToPojo
                 .collect(Collectors.toList());
     }
 
@@ -227,6 +233,15 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
         }
 
+        return pojoList;
+    }
+
+    @Override
+    public List<SwiftMessageHeaderPojo> getTotalData() {
+        List<SwiftMessageHeader> resultList=repository.findAll();
+        List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
+                .map(this::mapToPojo)
+                .collect(Collectors.toList());
         return pojoList;
     }
 

@@ -20,5 +20,7 @@ public interface SwiftMessageService {
     public List<SwiftMessageHeaderPojo> getFullData();
     
     public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters);
+    
+    public List<SwiftMessageHeaderPojo> getTotalData();
  
 }
