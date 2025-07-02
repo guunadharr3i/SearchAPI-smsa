@@ -55,7 +55,7 @@ jobs:
         with:
           name: war-artifact
           path: target/*.war
-          retention-days: 7
+          retention-days: 3
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
