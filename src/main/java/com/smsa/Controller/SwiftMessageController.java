@@ -50,7 +50,7 @@ public class SwiftMessageController {
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("accessToken", null);
+            responseData.put("accessToken", accessToken);
             responseData.put("messages", pagedResult.getContent());
             responseData.put("totalPages", pagedResult.getTotalPages());
             responseData.put("totalElements", pagedResult.getTotalElements());
