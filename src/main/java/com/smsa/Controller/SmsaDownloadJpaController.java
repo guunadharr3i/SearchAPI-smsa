@@ -47,11 +47,11 @@ public class SmsaDownloadJpaController {
 
         try {
 
-//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-//            if (accessToken == null) {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
-//            }
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            if (accessToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
+            }
             switch (downloadType.toUpperCase()) {
                 case "XLSX":
                     return exportSwiftHeadersToExcel(filter.getFilter());

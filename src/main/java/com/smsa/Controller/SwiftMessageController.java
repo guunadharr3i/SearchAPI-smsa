@@ -40,11 +40,11 @@ public class SwiftMessageController {
 
         try {
 
-//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-//            if (accessToken == null) {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-//                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
-//            }
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            if (accessToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
+            }
 
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);

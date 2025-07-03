@@ -194,16 +194,28 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     @Override
     public List<SwiftMessageHeaderPojo> getFullData() {
-        List<SwiftMessageHeader> entities = repository.findTop5ByOrderByDateDesc();
+        logger.info("Fetching top 5 SwiftMessageHeader records by date");
 
-        if (entities == null || entities.isEmpty()) {
+        try {
+            List<SwiftMessageHeader> entities = repository.findTop5ByOrderByDateDesc();
+
+            if (entities == null || entities.isEmpty()) {
+                logger.warn("No SwiftMessageHeader records found");
+                return Collections.emptyList();
+            }
+
+            List<SwiftMessageHeaderPojo> pojos = entities.stream()
+                    .map(this::mapToPojo)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+
+            logger.info("Successfully mapped {} entities to POJOs", pojos.size());
+            return pojos;
+
+        } catch (Exception e) {
+            logger.error("Error while fetching or processing SwiftMessageHeader data", e);
             return Collections.emptyList();
         }
-
-        return entities.stream()
-                .map(this::mapToPojo)
-                .filter(Objects::nonNull) // handle nulls returned from mapToPojo
-                .collect(Collectors.toList());
     }
 
     public long totalRecords() {
