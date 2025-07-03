@@ -8,6 +8,7 @@ package com.smsa.Service;
  *
  * @author abcom
  */
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 
 import java.io.BufferedWriter;
@@ -33,7 +34,7 @@ public class SwiftMessageCsvExportService {
     @Autowired
     private SwiftMessageService swiftMessageService;
 
-    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderPojo filters) throws IOException {
+    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
         logger.info("Starting exportSwiftHeadersToZip with folderPath: {}", folderPath);
 
         List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);

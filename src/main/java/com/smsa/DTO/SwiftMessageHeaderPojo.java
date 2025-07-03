@@ -43,6 +43,8 @@ public class SwiftMessageHeaderPojo {
     private String primaryFormat;
     private String secondaryFormat;
     private String currency;
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private String rawTxt;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private LocalDate dateFrom;
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
@@ -466,6 +468,20 @@ public class SwiftMessageHeaderPojo {
      */
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    /**
+     * @return the rawTxt
+     */
+    public String getRawTxt() {
+        return rawTxt;
+    }
+
+    /**
+     * @param rawTxt the rawTxt to set
+     */
+    public void setRawTxt(String rawTxt) {
+        this.rawTxt = rawTxt;
     }
 
 }

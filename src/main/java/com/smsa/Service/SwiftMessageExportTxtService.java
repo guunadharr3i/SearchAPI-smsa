@@ -8,6 +8,7 @@ package com.smsa.Service;
  *
  * @author abcom
  */
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.repository.SwiftMessageHeaderRepository;
 
@@ -41,7 +42,7 @@ public class SwiftMessageExportTxtService {
     @Autowired
     private SwiftMessageService swiftMessageService;
 
-    public File exportTxtZip(String baseDirPath, SwiftMessageHeaderPojo filters) throws IOException {
+    public File exportTxtZip(String baseDirPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
         log.info("Starting export of SwiftMessageHeaders to TXT and ZIP format...");
 
         List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
@@ -181,14 +182,14 @@ public class SwiftMessageExportTxtService {
 //        if (h.getHeaderRaw() != null && !h.getHeaderRaw().trim().isEmpty()) {
 //            sb.append(h.getHeaderRaw().trim()).append("\n");
 //        }
-//        sb.append("-----------------Message Text -------------------\n");
+        sb.append("-----------------Message Text -------------------\n");
 //
-//        if (h.getRawMessageData() != null && !h.getRawMessageData().trim().isEmpty()) {
-//            String cleanedMessageText = extractMessageTextSection(h.getRawMessageData());
-//            if (!cleanedMessageText.trim().isEmpty()) {
-//                sb.append(cleanedMessageText).append("\n");
-//            }
-//        }
+        if (h.getRawTxt()!= null && !h.getRawTxt().trim().isEmpty()) {
+            String cleanedMessageText = extractMessageTextSection(h.getRawTxt());
+            if (!cleanedMessageText.trim().isEmpty()) {
+                sb.append(cleanedMessageText).append("\n");
+            }
+        }
         sb.append("------------------------------------\n");
         return sb.toString();
     }

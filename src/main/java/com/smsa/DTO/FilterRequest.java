@@ -12,7 +12,7 @@ import java.util.Map;
  */
 public class FilterRequest {
     private Map<String,String> tokenRequest;
-    private SwiftMessageHeaderPojo filter;
+    private SwiftMessageHeaderFilterPojo filter;
 
     /**
      * @return the tokenRequest
@@ -31,14 +31,14 @@ public class FilterRequest {
     /**
      * @return the filter
      */
-    public SwiftMessageHeaderPojo getFilter() {
+    public SwiftMessageHeaderFilterPojo getFilter() {
         return filter;
     }
 
     /**
      * @param filter the filter to set
      */
-    public void setFilter(SwiftMessageHeaderPojo filter) {
+    public void setFilter(SwiftMessageHeaderFilterPojo filter) {
         this.filter = filter;
     }
 

@@ -9,8 +9,8 @@ package com.smsa.Service;
  * @author abcom
  */
 
-import com.smsa.entity.SwiftMessageHeader;
-import com.smsa.repository.SwiftMessageHeaderRepository;
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
+import com.smsa.DTO.SwiftMessageHeaderPojo;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -31,12 +31,11 @@ public class TxtFilesService {
     private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(TxtFilesService.class);
 
     @Autowired
-    private SwiftMessageHeaderRepository repository;
+    private SwiftMessageService swiftMessageService;
 
-    public File exportSelectedMessagesToTxt(List<String> txnRefs, String tempDirPath) throws IOException {
-        logger.info("Starting export of Swift messages to TXT for transactionRefs: {}", txnRefs);
+    public File exportSelectedMessagesToTxt(SwiftMessageHeaderFilterPojo filters, String tempDirPath) throws IOException {
 
-        List<SwiftMessageHeader> records = repository.findByTransactionRefIn(txnRefs);
+        List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
         if (records == null || records.isEmpty()) {
             logger.warn("No Swift messages found for provided transaction references.");
             return null;
@@ -46,7 +45,7 @@ public class TxtFilesService {
         logger.info("Creating file at: {}", txtFile.getAbsolutePath());
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(txtFile))) {
-            for (SwiftMessageHeader header : records) {
+            for (SwiftMessageHeaderPojo header : records) {
                 logger.debug("Writing record with transactionRef: {}", header.getTransactionRef());
                 writer.write(formatRecord(header));
                 writer.newLine(); // extra space between records
@@ -60,7 +59,7 @@ public class TxtFilesService {
         return txtFile;
     }
 
-    private String formatRecord(SwiftMessageHeader h) {
+    private String formatRecord(SwiftMessageHeaderPojo h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
@@ -83,13 +82,13 @@ public class TxtFilesService {
 //        if (notBlank(h.getHeaderRaw()))
 //            sb.append(h.getHeaderRaw().trim()).append("\n");
 //
-//        sb.append("-----------------Message Text -------------------\n");
-//
-//        if (notBlank(h.getRawMessageData())) {
-//            String cleaned = extractMessageTextSection(h.getRawMessageData());
-//            if (notBlank(cleaned))
-//                sb.append(cleaned).append("\n");
-//        }
+        sb.append("-----------------Message Text -------------------\n");
+
+        if (notBlank(h.getRawTxt())) {
+            String cleaned = extractMessageTextSection(h.getRawTxt());
+            if (notBlank(cleaned))
+                sb.append(cleaned).append("\n");
+        }
 
         sb.append("------------------------------------\n");
         return sb.toString();

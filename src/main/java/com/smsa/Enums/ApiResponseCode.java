@@ -14,8 +14,8 @@ public enum ApiResponseCode {
     INVALID_DOWNLOAD_TYPE(1002, "Invalid download type"),
     FILE_NOT_FOUND(1003, "Requested file not found"),
     NO_RECORDS(1004, "No records found to export"),
-    INTERNAL_ERROR(1005, "Internal server error");
-
+    INTERNAL_ERROR(1005, "Internal server error"),
+    FILE_ERROR(1006, "Exception Occurred");
     private final int code;
     private final String message;
 

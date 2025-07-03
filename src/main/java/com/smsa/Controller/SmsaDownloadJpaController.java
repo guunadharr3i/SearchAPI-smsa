@@ -1,9 +1,7 @@
 package com.smsa.Controller;
 
-
-
 import com.smsa.DTO.FilterRequest;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.Enums.ApiResponseCode;
 import com.smsa.NameConstants.AppConstants;
 import com.smsa.ResponseWrappers.DownloadApiResponse;
@@ -27,7 +25,6 @@ public class SmsaDownloadJpaController {
 
     private static final Logger logger = LogManager.getLogger(SmsaDownloadJpaController.class);
 
-
     @Autowired
     private SwiftMessageExportService exportService;
     @Autowired
@@ -36,6 +33,10 @@ public class SmsaDownloadJpaController {
     private SwiftMessageCsvExportService csvExportService;
     @Autowired
     private AuthenticateAPi authenticateApi;
+    @Autowired
+    private SwiftMessageExportPdfService pdfExportService;
+    @Autowired
+    private TxtFilesService txtFilesService;
 
     @PostMapping("/download")
     public ResponseEntity<?> getFilteredMessages(
@@ -46,17 +47,11 @@ public class SmsaDownloadJpaController {
 
         try {
 
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
-            }
-
 //            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
 //            if (accessToken == null) {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token refresh failed.");
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
 //            }
-
             switch (downloadType.toUpperCase()) {
                 case "XLSX":
                     return exportSwiftHeadersToExcel(filter.getFilter());
@@ -64,6 +59,10 @@ public class SmsaDownloadJpaController {
                     return exportTxtZip(filter.getFilter());
                 case "CSV":
                     return exportSwiftHeadersToCsv(filter.getFilter());
+                case "PDF":
+                    return exportSelectedMessagesToPdf(filter.getFilter());
+                case "CTXT":
+                    return downloadTxt(filter.getFilter());
                 default:
                     return ResponseEntity.badRequest()
                             .body(DownloadApiResponse.error(ApiResponseCode.INVALID_DOWNLOAD_TYPE));
@@ -76,7 +75,7 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    public ResponseEntity<?> exportSwiftHeadersToExcel(SwiftMessageHeaderPojo filters) {
+    public ResponseEntity<?> exportSwiftHeadersToExcel(SwiftMessageHeaderFilterPojo filters) {
         logger.info("Exporting data to Excel zip");
         try {
             String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
@@ -97,7 +96,7 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    public ResponseEntity<?> exportTxtZip(SwiftMessageHeaderPojo filters) {
+    public ResponseEntity<?> exportTxtZip(SwiftMessageHeaderFilterPojo filters) {
         logger.info("Exporting TXT zip");
         try {
             File zipFile = txtService.exportTxtZip(System.getProperty(AppConstants.JAVA_IO_TMPDIR), filters);
@@ -115,10 +114,9 @@ public class SmsaDownloadJpaController {
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
         }
     }
-    
 
     @GetMapping("/export/csv")
-    public ResponseEntity<?> exportSwiftHeadersToCsv(SwiftMessageHeaderPojo filters) {
+    public ResponseEntity<?> exportSwiftHeadersToCsv(SwiftMessageHeaderFilterPojo filters) {
         logger.info("Exporting CSV zip");
         try {
             String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
@@ -144,6 +142,79 @@ public class SmsaDownloadJpaController {
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
         }
     }
+
+    public ResponseEntity<?> exportSelectedMessagesToPdf(SwiftMessageHeaderFilterPojo filters) {
+    logger.info("Request received to export selected messages to PDF. Filters: {}", filters);
+
+    File filePath = null;
+    try {
+        String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
+        logger.debug("Temporary directory for PDF export: {}", path);
+
+        filePath = pdfExportService.exportSelectedMessagesToPdf(path, filters);
+
+        if (filePath == null || !filePath.exists()) {
+            logger.warn("PDF generation failed: No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(DownloadApiResponse.error(ApiResponseCode.NO_RECORDS));
+        }
+
+        logger.info("PDF file generated successfully: {}", filePath.getAbsolutePath());
+
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(filePath));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + filePath.getName())
+                .contentType(MediaType.APPLICATION_PDF)
+                .contentLength(filePath.length())
+                .body(resource);
+
+    } catch (IOException e) {
+        logger.error("IOException while generating or reading PDF file", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(DownloadApiResponse.error(ApiResponseCode.FILE_ERROR));
+    } catch (Exception e) {
+        logger.error("Unexpected error occurred in exportSelectedMessagesToPdf method", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
+    }
+}
+
+
+   public ResponseEntity<?> downloadTxt(SwiftMessageHeaderFilterPojo filters) {
+    logger.info("Request received to download TXT with filters: {}", filters);
+
+    File txtFile = null;
+    try {
+        String tempDir = System.getProperty("java.io.tmpdir");
+        logger.debug("Temporary directory for TXT file: {}", tempDir);
+
+        txtFile = txtFilesService.exportSelectedMessagesToTxt(filters, tempDir);
+
+        if (txtFile == null || !txtFile.exists()) {
+            logger.warn("TXT generation failed: No records found.");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(DownloadApiResponse.error(ApiResponseCode.NO_RECORDS));
+        }
+
+        logger.info("TXT file generated successfully: {}", txtFile.getAbsolutePath());
+
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(txtFile));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + txtFile.getName())
+                .contentType(MediaType.TEXT_PLAIN)
+                .body(resource);
+
+    } catch (IOException e) {
+        logger.error("Error occurred while generating or reading the TXT file", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(DownloadApiResponse.error(ApiResponseCode.FILE_ERROR));
+    } catch (Exception e) {
+        logger.error("Unexpected error in downloadTxt method", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
+    }
+}
+
 
     private ResponseEntity<InputStreamResource> getFileDownloadResponse(File zipFile, String fileName) throws IOException {
         InputStreamResource resource = new InputStreamResource(new FileInputStream(zipFile));

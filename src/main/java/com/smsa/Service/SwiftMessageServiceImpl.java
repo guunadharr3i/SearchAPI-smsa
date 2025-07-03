@@ -1,5 +1,6 @@
 package com.smsa.Service;
 
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import com.smsa.repository.SwiftMessageHeaderRepository;
@@ -42,10 +43,14 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     /**
      * Fetch filtered messages and cache results in Redis using
      * filter.toString() as key
+     *
+     * @param filter
+     * @param pageable
+     * @return
      */
     @Override
 //    @Cacheable(value = "swiftMessages", key = "'filter_'+#filter.transactionRef")
-    public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filter, Pageable pageable) {
+    public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filter, Pageable pageable) {
         logger.info("Executing getFilteredMessages with filter: {}", filter);
 
         List<SwiftMessageHeader> resultList = new ArrayList<>();
@@ -90,32 +95,22 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return new PageImpl<>(pojoList, pageable, totalCount);
     }
 
-    private List<Predicate> buildDynamicPredicates(SwiftMessageHeaderPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+    private List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         List<Predicate> predicates = new ArrayList<>();
 
         try {
-            for (PropertyDescriptor pd : Introspector.getBeanInfo(SwiftMessageHeaderPojo.class).getPropertyDescriptors()) {
+            for (PropertyDescriptor pd : Introspector.getBeanInfo(SwiftMessageHeaderFilterPojo.class).getPropertyDescriptors()) {
                 String fieldName = pd.getName();
+                Object value;
 
-                if ("class".equals(fieldName)) {
-                    continue;
-                }
-
-                Object value = pd.getReadMethod().invoke(filter);
-                if (value == null || value.toString().isEmpty()) {
-                    continue;
-                }
-
-                if (fieldName.endsWith("From") && value instanceof Comparable) {
-                    String baseField = fieldName.replace("From", "");
-                    predicates.add(cb.greaterThanOrEqualTo(root.get(baseField), (Comparable) value));
-                } else if (fieldName.endsWith("To") && value instanceof Comparable) {
-                    String baseField = fieldName.replace("To", "");
-                    predicates.add(cb.lessThanOrEqualTo(root.get(baseField), (Comparable) value));
-                } else if (value instanceof String && !((String) value).trim().isEmpty()) {
-                    predicates.add(cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(((String) value).toLowerCase()) + "%"));
-                } else if (!(value instanceof String)) {
-                    predicates.add(cb.equal(root.get(fieldName), value));
+                if (!"class".equals(fieldName)) {
+                    value = pd.getReadMethod().invoke(filter);
+                    if (value != null) {
+                        Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                        if (predicate != null) {
+                            predicates.add(predicate);
+                        }
+                    }
                 }
             }
         } catch (IntrospectionException | IllegalAccessException | InvocationTargetException e) {
@@ -123,6 +118,48 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         }
 
         return predicates;
+    }
+
+    private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+        if (fieldName.endsWith("From") && value instanceof Comparable) {
+            return cb.greaterThanOrEqualTo(root.get(fieldName.replace("From", "")), (Comparable) value);
+        }
+
+        if (fieldName.endsWith("To") && value instanceof Comparable) {
+            return cb.lessThanOrEqualTo(root.get(fieldName.replace("To", "")), (Comparable) value);
+        }
+
+        if (value instanceof List) {
+            return handleListPredicate(fieldName, (List<?>) value, cb, root);
+        }
+
+        if (value instanceof String) {
+            String str = ((String) value).trim();
+            if (!str.isEmpty()) {
+                return cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(str.toLowerCase()) + "%");
+            }
+            return null;
+        }
+
+        return cb.equal(root.get(fieldName), value);
+    }
+
+    private Predicate handleListPredicate(String fieldName, List<?> list, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+        if (list.isEmpty()) {
+            return null;
+        }
+
+        if (list.get(0) instanceof String) {
+            List<Predicate> likePredicates = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    likePredicates.add(cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(item.toString().toLowerCase()) + "%"));
+                }
+            }
+            return cb.or(likePredicates.toArray(new Predicate[0]));
+        }
+
+        return root.get(fieldName).in(list);
     }
 
     private SwiftMessageHeaderPojo mapToPojo(SwiftMessageHeader entity) {
@@ -150,6 +187,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         pojo.setFileDate(entity.getFileDate());
         pojo.setMur(entity.getMur());
         pojo.setUetr(entity.getUetr());
+        pojo.setRawTxt(entity.getRawMessageData());
 
         return pojo;
     }
@@ -202,7 +240,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     }
 
     @Override
-    public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderPojo filters) {
+    public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filters) {
         List<SwiftMessageHeaderPojo> pojoList = new ArrayList<>();
 
         try {
@@ -238,7 +276,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     @Override
     public List<SwiftMessageHeaderPojo> getTotalData() {
-        List<SwiftMessageHeader> resultList=repository.findAll();
+        List<SwiftMessageHeader> resultList = repository.findAll();
         List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
                 .map(this::mapToPojo)
                 .collect(Collectors.toList());
