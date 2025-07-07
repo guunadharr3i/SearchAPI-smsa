@@ -8,14 +8,11 @@ package com.smsa.DTO;
  *
  * @author abcom
  */
-import javax.validation.constraints.NotBlank;
 
 public class AuthRequest {
 
-    @NotBlank(message = "Token must not be blank")
     private String token;
 
-    @NotBlank(message = "Device hash must not be blank")
     private String deviceHash;
 
     public AuthRequest() {
