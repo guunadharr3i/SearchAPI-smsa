@@ -1,5 +1,6 @@
 package com.smsa.Controller;
 
+import com.smsa.DTO.AuthRequest;
 import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.Enums.ErrorCode;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import javax.validation.Valid;
 import org.apache.logging.log4j.LogManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -66,11 +68,18 @@ public class SwiftMessageController {
         }
     }
 
-    @GetMapping("/getRecentTransactions")
-    public ResponseEntity<?> getFullData(@RequestParam Map<String, String> token) {
+    public ResponseEntity<?> getFullData(@Valid @RequestBody AuthRequest request) {
         logger.info("Request received to fetch get recent  SMSA data.");
         try {
-            String accessToken = authenticateApi.validateAndRefreshToken(token);
+            logger.info("Request received for /counts");
+            String token = request.getToken();
+            String deviceHash = request.getDeviceHash();
+            Map<String, String> tokenMap = new HashMap<>();
+            tokenMap.put("token", token);
+            tokenMap.put("DeviceHash", deviceHash);
+            logger.info("Encrypted Token: {}", token);
+            logger.info("Encrypted Device Hash: {}", deviceHash);
+            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
             if (accessToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
