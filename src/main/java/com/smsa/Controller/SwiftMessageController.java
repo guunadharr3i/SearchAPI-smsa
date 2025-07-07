@@ -68,6 +68,7 @@ public class SwiftMessageController {
         }
     }
 
+    @PostMapping("/getRecentTransactions")
     public ResponseEntity<?> getFullData(@Valid @RequestBody AuthRequest request) {
         logger.info("Request received to fetch get recent  SMSA data.");
         try {
