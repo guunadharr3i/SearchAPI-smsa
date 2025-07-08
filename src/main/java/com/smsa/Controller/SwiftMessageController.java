@@ -1,11 +1,18 @@
 package com.smsa.Controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.smsa.DTO.AuthRequest;
 import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.Enums.ErrorCode;
 import com.smsa.ResponseWrappers.ApiResponse;
 import com.smsa.Service.SwiftMessageService;
+import com.smsa.Utils.EncryptedResponseData;
+import com.smsa.Utils.EncryptedtPayloadRequest;
+import com.smsa.encryption.AESUtil;
 import com.smsa.tokenValidation.AuthenticateAPi;
 import java.util.HashMap;
 
@@ -15,8 +22,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
-import javax.validation.Valid;
 import org.apache.logging.log4j.LogManager;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,36 +38,58 @@ public class SwiftMessageController {
     private SwiftMessageService service;
     @Autowired
     private AuthenticateAPi authenticateApi;
+    @Value("${aes.auth.key}")
+    private String secretKey;
+    @Value("${aes.auth.vi.key}")
+    private String viKey;
 
     @PostMapping("/searchApi")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> getFilteredMessages(
-            @RequestBody FilterRequest filter,
+    public ResponseEntity<ApiResponse<String>> getFilteredMessages(
+            @RequestBody EncryptedtPayloadRequest encryptedRequest,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        logger.info("Received request to /searchApi with filter: {}, page: {}, size: {}", filter, page, size);
+        logger.info("Received encrypted request to /searchApi");
 
         try {
+            // Step 1: Decrypt incoming payload
+            String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
 
+            // Step 2: Convert decrypted JSON to FilterRequest
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
+            logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
+            // Step 3: Authentication
             String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
             if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
             }
-
+            // Step 4: Business Logic
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
-            Map<String, Object> responseData = new HashMap<>();
-            responseData.put("accessToken", accessToken);
-            responseData.put("messages", pagedResult.getContent());
-            responseData.put("totalPages", pagedResult.getTotalPages());
-            responseData.put("totalElements", pagedResult.getTotalElements());
-            responseData.put("currentPage", pagedResult.getNumber());
+            // Step 5: Prepare response data
+            EncryptedResponseData responseData = new EncryptedResponseData();
+            responseData.setAccessToken(accessToken);
+            responseData.setMessages(pagedResult.getContent());
+            responseData.setTotalElements(pagedResult.getTotalElements());
+            responseData.setTotalPages(pagedResult.getTotalPages());
+            responseData.setCurrentPage(pagedResult.getNumber());
 
+            // Step 6: Convert to JSON and encrypt
+            String jsonResponse = mapper.writeValueAsString(responseData);
+            String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
 
-            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, responseData));
+            // Step 7: Return encrypted response
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
 
+        } catch (JsonProcessingException ex) {
+            logger.error("JsonProcessingException: {}", ex.getMessage(), ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         } catch (Exception ex) {
             logger.error("Unexpected error: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -105,4 +134,81 @@ public class SwiftMessageController {
     public List<SwiftMessageHeaderPojo> totalData() {
         return service.getTotalData();
     }
+
+    @PostMapping("/encryptFilter")
+    public ResponseEntity<ApiResponse<String>> encryptFilterPayload(@RequestBody FilterRequest filter) {
+        try {
+            logger.info("Received request to /encryptFilter: {}", filter);
+
+            // Convert FilterRequest to JSON
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writeValueAsString(filter);
+
+            // Encrypt the JSON
+            String encrypted = AESUtil.encrypt(json, secretKey, viKey);
+
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encrypted));
+        } catch (Exception e) {
+            logger.error("Encryption failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
+        }
+    }
+
+    @PostMapping("/decryptFilter")
+    public ResponseEntity<ApiResponse<FilterRequest>> decryptFilterPayload(@RequestBody EncryptedtPayloadRequest request) {
+        try {
+            logger.info("Received request to /decryptFilter");
+
+            // Decrypt the encrypted payload
+            String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
+
+            // Convert JSON to FilterRequest object
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
+
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
+        } catch (Exception e) {
+            logger.error("Decryption failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
+        }
+    }
+
+    @PostMapping("/decryptSearchFilter")
+    public ResponseEntity<ApiResponse<EncryptedResponseData>> decryptSearchFilterPayload(@RequestBody EncryptedtPayloadRequest request) {
+        try {
+            logger.info("Received request to /decryptFilter");
+
+            // Decrypt the encrypted payload
+            String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
+
+            // Convert JSON to FilterRequest object
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            EncryptedResponseData filter = mapper.readValue(decryptedJson, EncryptedResponseData.class);
+
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
+        } catch (Exception e) {
+            logger.error("Decryption failed: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
+        }
+    }
+
+    public Map<String, String> encryptTOken(FilterRequest filter) {
+        Map<String, String> refreshCall = new HashMap<>();
+        try {
+            String encryptedToken = AESUtil.encrypt(filter.getTokenRequest().get("token"), secretKey, viKey);
+            refreshCall.put("token", encryptedToken);
+            refreshCall.put("DeviceHash", filter.getTokenRequest().get("DeviceHash"));
+        } catch (Exception e) {
+            return new HashMap();
+        }
+        return refreshCall;
+    }
+
 }
