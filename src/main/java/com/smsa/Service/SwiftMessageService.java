@@ -8,6 +8,7 @@
  */
 package com.smsa.Service;
 
+import com.smsa.DTO.SenderBicReponse;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import java.util.List;
@@ -16,12 +17,16 @@ import org.springframework.data.domain.Pageable;
 
 public interface SwiftMessageService {
 
-    public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filters,Pageable pageable);
-    
+    public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filters, Pageable pageable);
+
     public List<SwiftMessageHeaderPojo> getFullData();
-    
+
     public List<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filters);
-    
+
     public List<SwiftMessageHeaderPojo> getTotalData();
- 
+
+    public List<SenderBicReponse> getSenderBicData();
+
+    public List<SenderBicReponse> getReceiverrBicData();
+
 }

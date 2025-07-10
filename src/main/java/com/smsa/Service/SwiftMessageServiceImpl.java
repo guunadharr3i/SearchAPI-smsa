@@ -1,5 +1,6 @@
 package com.smsa.Service;
 
+import com.smsa.DTO.SenderBicReponse;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.entity.SwiftMessageHeader;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @Service
@@ -293,6 +295,54 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 .map(this::mapToPojo)
                 .collect(Collectors.toList());
         return pojoList;
+    }
+
+    @Override
+    public List<SenderBicReponse> getSenderBicData() {
+        List<SenderBicReponse> bicData = new ArrayList<>();
+        try {
+            List<Object[]> results = repository.findTopSenderBicsStartingWithICIC(PageRequest.of(0, 5));
+            if (results != null && !results.isEmpty()) {
+                for (Object[] row : results) {
+                    SenderBicReponse s = new SenderBicReponse();
+                    String senderBic = (String) row[0];
+                    Long count = ((Number) row[1]).longValue();
+                    s.setBicData(senderBic);
+                    s.setCount(count);
+                    bicData.add(s);
+                    logger.info("Sender BIC: " + senderBic + " | Count: " + count);
+                }
+            } else {
+                logger.info("No BIC data found starting with 'ICIC'");
+            }
+        } catch (Exception e) {
+            logger.error("Exception while fetching sender BIC data: ", e);
+        }
+        return bicData;
+    }
+
+    @Override
+    public List<SenderBicReponse> getReceiverrBicData() {
+        List<SenderBicReponse> bicData = new ArrayList<>();
+        try {
+            List<Object[]> results = repository.findTopReciverBicsStartingWithICIC(PageRequest.of(0, 5));
+            if (results != null && !results.isEmpty()) {
+                for (Object[] row : results) {
+                    SenderBicReponse s = new SenderBicReponse();
+                    String receiverBic = (String) row[0];
+                    Long count = ((Number) row[1]).longValue();
+                    s.setBicData(receiverBic);
+                    s.setCount(count);
+                    bicData.add(s);
+                    logger.info("Receiver BIC: " + receiverBic + " | Count: " + count);
+                }
+            } else {
+                logger.info("No BIC data found starting with 'ICIC'");
+            }
+        } catch (Exception e) {
+            logger.error("Exception while fetching receiver BIC data: ", e);
+        }
+        return bicData;
     }
 
 }

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessageHeader, Long> {
@@ -29,5 +30,19 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
             + "JSON_VALUE(SMSA_RECEIVER_OBJ, '$.Country')",
             nativeQuery = true)
     List<Object[]> getSenderReceiverCountryCountsRaw();
+
+    @Query(value = "SELECT s.senderBic, COUNT(s) AS total_count "
+            + "FROM SwiftMessageHeader s "
+            + "WHERE s.senderBic LIKE 'ICIC%' "
+            + "GROUP BY s.senderBic "
+            + "ORDER BY COUNT(s) DESC")
+    List<Object[]> findTopSenderBicsStartingWithICIC(Pageable pageable);
+    
+     @Query(value = "SELECT s.receiverBic, COUNT(s) AS total_count "
+            + "FROM SwiftMessageHeader s "
+            + "WHERE s.receiverBic LIKE 'ICIC%' "
+            + "GROUP BY s.receiverBic "
+            + "ORDER BY COUNT(s) DESC")
+    List<Object[]> findTopReciverBicsStartingWithICIC(Pageable pageable);
 
 }
