@@ -18,9 +18,8 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
 
     List<SwiftMessageHeader> findTop5ByOrderByDateDesc();
 
-    // 🔽 New native query for sender-receiver country grouping
-    @Query(value = "SELECT "
-            + "JSON_VALUE(senderObj, '$.Country') AS senderCountry, "
+    @Query(value
+            = "SELECT JSON_VALUE(SMSA_SENDER_OBJ, '$.Country') AS senderCountry, "
             + "JSON_VALUE(SMSA_RECEIVER_OBJ, '$.Country') AS receiverCountry, "
             + "COUNT(*) AS transactionCount "
             + "FROM SMSA_PRT_MESSAGE_HDR "
@@ -30,4 +29,5 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
             + "JSON_VALUE(SMSA_RECEIVER_OBJ, '$.Country')",
             nativeQuery = true)
     List<Object[]> getSenderReceiverCountryCountsRaw();
+
 }
