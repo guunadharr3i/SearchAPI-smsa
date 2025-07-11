@@ -2,8 +2,6 @@ package com.smsa.Service;
 
 import com.smsa.DTO.BicCountryPojo;
 import com.smsa.DTO.GeoResponsePojo;
-import com.smsa.entity.BicCountry;
-import com.smsa.repository.BicCountryRepository;
 import com.smsa.repository.SwiftMessageHeaderRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -21,8 +19,6 @@ public class GeoDataService {
     @Autowired
     private SwiftMessageHeaderRepository repository;
 
-    @Autowired
-    private BicCountryRepository bicCountryRepository;
 
     private static final Logger logger = LogManager.getLogger(GeoDataService.class);
 
@@ -53,24 +49,26 @@ public class GeoDataService {
     }
 
     public Map<String, BicCountryPojo> getBicCountryData() {
-        Map<String, BicCountryPojo> map = new HashMap<>();
-        try {
-            logger.info("Fetching BIC country data...");
-            List<BicCountry> bicData = bicCountryRepository.findAll();
+        Map<String, BicCountryPojo> countryPaymentMap = new HashMap<>();
 
-            for (BicCountry b : bicData) {
-                BicCountryPojo pojo = new BicCountryPojo();
-                pojo.setId(b.getId());
-                pojo.setCountryCode(b.getCountryCode());
-                pojo.setCountryName(b.getCountryName());
-                pojo.setLatitude(b.getLatitude());
-                pojo.setLongitude(b.getLongitude());
+        countryPaymentMap.put("BH", new BicCountryPojo("BH", "Bahrain", 26.0667, 50.5577));
+        countryPaymentMap.put("BE", new BicCountryPojo("BE", "Belgium", 50.8503, 4.3517));
+        countryPaymentMap.put("CA", new BicCountryPojo("CA", "Canada", 56.1304, -106.3468));
+        countryPaymentMap.put("AE", new BicCountryPojo("AE", "Dubai", 25.276987, 55.296249));
+        countryPaymentMap.put("DE", new BicCountryPojo("DE", "Germany", 51.1657, 10.4515));
+        countryPaymentMap.put("HK", new BicCountryPojo("HK", "Hong Kong", 22.3193, 114.1694));
+        countryPaymentMap.put("IG", new BicCountryPojo("IG", "IBUGIFT", 0.0, 0.0)); // Placeholder
+        countryPaymentMap.put("IN", new BicCountryPojo("IN", "India", 20.5937, 78.9629));
+        countryPaymentMap.put("IS", new BicCountryPojo("IS", "INDIA-SFMS", 21.0, 78.0)); // Placeholder
+        countryPaymentMap.put("QA", new BicCountryPojo("QA", "QATAR", 25.276987, 51.5200));
+        countryPaymentMap.put("RU", new BicCountryPojo("RU", "Russia", 61.5240, 105.3188));
+        countryPaymentMap.put("CN", new BicCountryPojo("CN", "SHANGHAI", 31.2304, 121.4737));
+        countryPaymentMap.put("SG", new BicCountryPojo("SG", "Singapore", 1.3521, 103.8198));
+        countryPaymentMap.put("ZA", new BicCountryPojo("ZA", "SOUTH AFRICA", -30.5595, 22.9375));
+        countryPaymentMap.put("LK", new BicCountryPojo("LK", "SriLanka", 7.8731, 80.7718));
+        countryPaymentMap.put("GB", new BicCountryPojo("GB", "UK", 54.0, -2.0));
+        countryPaymentMap.put("US", new BicCountryPojo("US", "USA", 38.0, -97.0));
 
-                map.put(b.getCountryCode(), pojo);
-            }
-        } catch (Exception e) {
-            logger.error("Exception occurred while fetching BIC country data: ", e);
-        }
-        return map;
+        return countryPaymentMap;
     }
 }

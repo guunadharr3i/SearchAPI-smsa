@@ -14,8 +14,6 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
     @Query("SELECT s.inpOut, COUNT(s) FROM SwiftMessageHeader s GROUP BY s.inpOut")
     List<Object[]> countBySmsaMsgIoGroup();
 
-    @Query("SELECT s FROM SwiftMessageHeader s WHERE s.transactionRef IN :txnRefs")
-    List<SwiftMessageHeader> findByTransactionRefIn(List<String> txnRefs);
 
     List<SwiftMessageHeader> findTop5ByOrderByDateDesc();
 

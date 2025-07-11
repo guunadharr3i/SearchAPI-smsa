@@ -8,38 +8,26 @@ package com.smsa.DTO;
  *
  * @author abcom
  */
-import java.math.BigDecimal;
 
 public class BicCountryPojo {
 
-    private Long id;
     private String countryCode;
     private String countryName;
-    private BigDecimal latitude;
-    private BigDecimal longitude;
+    private double latitude;
+    private double longitude;
 
     // --- Constructors ---
 
     public BicCountryPojo() {
     }
 
-    public BicCountryPojo(Long id, String countryCode, String countryName, BigDecimal latitude, BigDecimal longitude) {
-        this.id = id;
+    public BicCountryPojo(String countryCode, String countryName, double latitude, double longitude) {
         this.countryCode = countryCode;
         this.countryName = countryName;
         this.latitude = latitude;
         this.longitude = longitude;
     }
 
-    // --- Getters and Setters ---
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
 
     public String getCountryCode() {
         return countryCode;
@@ -57,19 +45,19 @@ public class BicCountryPojo {
         this.countryName = countryName;
     }
 
-    public BigDecimal getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(BigDecimal latitude) {
+    public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
 
-    public BigDecimal getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(BigDecimal longitude) {
+    public void setLongitude(double longitude) {
         this.longitude = longitude;
     }
 
@@ -78,7 +66,6 @@ public class BicCountryPojo {
     @Override
     public String toString() {
         return "BicCountryPojo{" +
-                "id=" + id +
                 ", countryCode='" + countryCode + '\'' +
                 ", countryName='" + countryName + '\'' +
                 ", latitude=" + latitude +
