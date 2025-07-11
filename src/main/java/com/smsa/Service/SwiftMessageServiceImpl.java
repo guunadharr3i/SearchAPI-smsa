@@ -124,11 +124,11 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         if (fieldName.endsWith("From") && value instanceof Comparable) {
-            return cb.greaterThanOrEqualTo(root.get(fieldName.replace("From", "")), (Comparable) value);
+            return cb.greaterThanOrEqualTo(root.get("fileDate"), (Comparable) value);
         }
 
         if (fieldName.endsWith("To") && value instanceof Comparable) {
-            return cb.lessThanOrEqualTo(root.get(fieldName.replace("To", "")), (Comparable) value);
+            return cb.lessThanOrEqualTo(root.get("fileDate"), (Comparable) value);
         }
 
         if (value instanceof List) {
