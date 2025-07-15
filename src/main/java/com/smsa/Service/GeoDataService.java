@@ -64,7 +64,7 @@ public class GeoDataService {
         countryPaymentMap.put("RU", new BicCountryPojo("RU", "Russia", 61.5240, 105.3188));
         countryPaymentMap.put("CN", new BicCountryPojo("CN", "SHANGHAI", 31.2304, 121.4737));
         countryPaymentMap.put("SG", new BicCountryPojo("SG", "Singapore", 1.3521, 103.8198));
-        countryPaymentMap.put("ZA", new BicCountryPojo("ZA", "SOUTH AFRICA", -30.5595, 22.9375));
+        countryPaymentMap.put("ZA", new BicCountryPojo("ZA", "South Africa", -30.5595, 22.9375));
         countryPaymentMap.put("LK", new BicCountryPojo("LK", "SriLanka", 7.8731, 80.7718));
         countryPaymentMap.put("GB", new BicCountryPojo("GB", "UK", 54.0, -2.0));
         countryPaymentMap.put("US", new BicCountryPojo("US", "USA", 38.0, -97.0));

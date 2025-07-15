@@ -26,6 +26,7 @@ import javax.persistence.criteria.Root;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.persistence.criteria.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -69,6 +70,16 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             if (!predicates.isEmpty()) {
                 query.where(cb.and(predicates.toArray(new Predicate[0])));
             }
+            List<Order> orderOfSorting = new ArrayList<>();
+            orderOfSorting.add(cb.desc(root.get("fileDate")));
+            if (filter.getColumnSort() != null && !filter.getColumnSort().isEmpty()) {
+                logger.info("Sortimg by columns: " + "fileDate");
+                for (String column : filter.getColumnSort()) {
+                    logger.info("," + column);
+                    orderOfSorting.add(cb.desc(root.get(column)));
+                }
+            }
+            query.orderBy(orderOfSorting);
 
             TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
             typedQuery.setFirstResult((int) pageable.getOffset());
@@ -108,9 +119,11 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 if (!"class".equals(fieldName)) {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
-                        Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
-                        if (predicate != null) {
-                            predicates.add(predicate);
+                        if (!fieldName.equals("columnSort")) {
+                            Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                            if (predicate != null) {
+                                predicates.add(predicate);
+                            }
                         }
                     }
                 }

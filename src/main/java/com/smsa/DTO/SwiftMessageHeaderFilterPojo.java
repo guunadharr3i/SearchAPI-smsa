@@ -37,6 +37,7 @@ public class SwiftMessageHeaderFilterPojo {
     private List<String> currency;
     private LocalDate dateFrom;
     private LocalDate dateTo;
+     private List<String> columnSort;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -277,5 +278,19 @@ public class SwiftMessageHeaderFilterPojo {
 
     public void setDateTo(LocalDate dateTo) {
         this.dateTo = dateTo;
+    }
+
+    /**
+     * @return the columnSort
+     */
+    public List<String> getColumnSort() {
+        return columnSort;
+    }
+
+    /**
+     * @param columnSort the columnSort to set
+     */
+    public void setColumnSort(List<String> columnSort) {
+        this.columnSort = columnSort;
     }
 }
