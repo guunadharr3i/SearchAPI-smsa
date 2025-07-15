@@ -97,11 +97,10 @@ public class SwiftMessageController {
         }
     }
 
-    @PostMapping("/getRecentTransactions")
-    public ResponseEntity<?> getFullData(@RequestBody AuthRequest request) {
-        logger.info("Request received to fetch get recent  SMSA data.");
+    @PostMapping("/getMessageTypes")
+    public ResponseEntity<?> getMessageTypes(@RequestBody AuthRequest request) {
+        logger.info("Request received to  get messageTypes.");
         try {
-            logger.info("Request received for /counts");
             String token = request.getToken();
             String deviceHash = request.getDeviceHash();
             Map<String, String> tokenMap = new HashMap<>();
@@ -114,13 +113,17 @@ public class SwiftMessageController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
             }
-            List<SwiftMessageHeaderPojo> data = service.getFullData();
-            logger.info("Successfully fetched {} SMSA records.", data.size());
-            return ResponseEntity.ok(data);
+            List<String> data = service.getMessageTypes();
+            logger.info("Successfully fetched {} MessageTypes.", data.size());
+             ObjectMapper mapper = new ObjectMapper();
+            // Step 6: Convert to JSON and encrypt
+            String jsonResponse = mapper.writeValueAsString(data);
+            String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
+            return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
         } catch (Exception e) {
-            logger.error("Error fetching SMSA data: {}", e.getMessage(), e);
+            logger.error("Error fetching Message Type data: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Unexpected error occurred while fetching SMSA data.");
+                    .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
 

@@ -28,5 +28,7 @@ public interface SwiftMessageService {
     public List<SenderBicReponse> getSenderBicData();
 
     public List<SenderBicReponse> getReceiverrBicData();
+    
+    public List<String> getMessageTypes();
 
 }

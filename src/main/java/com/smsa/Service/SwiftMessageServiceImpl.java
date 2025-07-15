@@ -358,4 +358,8 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return bicData;
     }
 
+    public List<String> getMessageTypes() {
+        return repository.findDistinctSmsaMsgTypesOrdered();
+    }
+
 }

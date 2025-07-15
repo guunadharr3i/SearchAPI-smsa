@@ -14,7 +14,6 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
     @Query("SELECT s.inpOut, COUNT(s) FROM SwiftMessageHeader s GROUP BY s.inpOut")
     List<Object[]> countBySmsaMsgIoGroup();
 
-
     List<SwiftMessageHeader> findTop5ByOrderByDateDesc();
 
     @Query(value
@@ -35,12 +34,15 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
             + "GROUP BY s.senderBic "
             + "ORDER BY COUNT(s) DESC")
     List<Object[]> findTopSenderBicsStartingWithICIC(Pageable pageable);
-    
-     @Query(value = "SELECT s.receiverBic, COUNT(s) AS total_count "
+
+    @Query(value = "SELECT s.receiverBic, COUNT(s) AS total_count "
             + "FROM SwiftMessageHeader s "
             + "WHERE s.receiverBic LIKE 'ICIC%' "
             + "GROUP BY s.receiverBic "
             + "ORDER BY COUNT(s) DESC")
     List<Object[]> findTopReciverBicsStartingWithICIC(Pageable pageable);
+
+    @Query("SELECT DISTINCT s.msgType FROM SwiftMessageHeader s ORDER BY s.msgType")
+    List<String> findDistinctSmsaMsgTypesOrdered();
 
 }
