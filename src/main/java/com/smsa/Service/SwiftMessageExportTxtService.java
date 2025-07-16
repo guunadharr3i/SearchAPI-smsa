@@ -98,7 +98,7 @@ public class SwiftMessageExportTxtService {
     private List<File> writeChunksToTxtFiles(File tempDir, List<StringBuilder> chunks) throws IOException {
         List<File> txtFiles = new ArrayList<>();
         for (int i = 0; i < chunks.size(); i++) {
-            File file = new File(tempDir, "swift_data_" + (i + 1) + ".txt");
+            File file = new File(tempDir, "General_Search_Report_" + (i + 1) + ".txt");
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 fos.write(chunks.get(i).toString().getBytes(StandardCharsets.UTF_8));
                 log.debug("Written chunk to file: {}", file.getName());

@@ -29,7 +29,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class SwiftMessageCsvExportService {
 
-    private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(SwiftMessageCsvExportService.class);
+    private static final org.apache.logging.log4j.Logger logger = LogManager
+            .getLogger(SwiftMessageCsvExportService.class);
 
     @Autowired
     private SwiftMessageService swiftMessageService;
@@ -75,9 +76,10 @@ public class SwiftMessageCsvExportService {
         int fileCount = 1;
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
             List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
-            File csvFile = new File(tempDir, "swift_headers_" + fileCount++ + ".csv");
+            File csvFile = new File(tempDir, "General_Search_Report_" + fileCount++ + ".csv");
 
-            try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(csvFile), StandardCharsets.UTF_8))) {
+            try (BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(new FileOutputStream(csvFile), StandardCharsets.UTF_8))) {
                 logger.info("Writing file: {}", csvFile.getName());
                 writeCsvHeader(writer);
                 for (SwiftMessageHeaderPojo h : chunk) {
@@ -141,14 +143,13 @@ public class SwiftMessageCsvExportService {
 
     private void writeCsvHeader(BufferedWriter writer) throws IOException {
         writer.write(String.join(",",
-                "SMSA_MESSAGE_ID", "SMSA_FILE_NAME", "SMSA_DATE", "SMSA_TIME", "SMSA_MT_CODE",
-                "SMSA_PAGE", "SMSA_PRIORITY",
-                "SMSA_FILE_TYPE", "SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
-                "SMSA_MSG_IO", "SMSA_MSG_DESC", "SMSA_MSG_TYPE", "SMSA_SLA_ID", "SMSA_SENDER_BIC",
-                "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_BIC",
-                "SMSA_RECEIVER_BIC_DESC", "SMSA_USER_REF", "SMSA_TXN_REF", "SMSA_FILE_DATE",
-                "SMSA_MUR", "SMSA_UETR", "SMSA_TXN_AMOUNT", "SMSA_TXN_RESULT", "SMSA_PRIMARY_FMT", "SMSA_SECONDARY_FMT",
-                "SMSA_MSG_CURRENCY"
+                "Message Id", "Identifier", "Sender", "Receiver", "MT Code",
+                "Date",
+                "Time", "File Type", "Currency", "Amount", "uetr", "Input Ref No", "Output Ref No",
+                "File Name", "Message Desc", "Message Type", "SLA ID", "Priority",
+                "Sender BIC Desc",
+                "Receiver BIC Desc", "User Ref", "Transaction Ref", "File Date",
+                "MUR", "Transaction Result", "Primary FMT", "Secondary FMT"
         ));
 
         writer.newLine();
@@ -156,15 +157,16 @@ public class SwiftMessageCsvExportService {
 
     private void writeCsvRow(BufferedWriter writer, SwiftMessageHeaderPojo h) throws IOException {
         writer.write(String.join(",",
-                csv(h.getMessageId()), csv(h.getFileName()), csv(h.getDate()), csv(h.getTime()), csv(h.getMtCode()),
-                csv(h.getPage()), csv(h.getPriority()),
-                csv(h.getFileType()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
-                csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
-                csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
+                csv(h.getMessageId()), csv(h.getInpOut()), csv(h.getSenderBic()), csv(h.getReceiverBic()),
+                csv(h.getMtCode()),
+                csv(h.getDate()),
+                csv(h.getTime()), csv(h.getFileType()), csv(h.getCurrency()), csv(h.getTransactionAmount()),
+                csv(h.getUetr()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
+                csv(h.getFileName()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getPriority()),
+                csv(h.getSenderBicDesc()),
                 csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
-                csv(h.getSecondaryFormat()), csv(h.getCurrency())
-        ));
+                csv(h.getMur()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
+                csv(h.getSecondaryFormat())));
 
         writer.newLine();
     }
@@ -180,14 +182,14 @@ public class SwiftMessageCsvExportService {
     private int estimateRowSize(SwiftMessageHeaderPojo h) {
         String raw = String.join("",
                 csv(h.getMessageId()), csv(h.getFileName()), csv(h.getDate()), csv(h.getTime()), csv(h.getMtCode()),
-                csv(h.getPage()), csv(h.getPriority()),
+                csv(h.getPriority()),
                 csv(h.getFileType()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
                 csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
                 csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
                 csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
-                csv(h.getSecondaryFormat()), csv(h.getCurrency())
-        );
+                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()),
+                csv(h.getPrimaryFormat()),
+                csv(h.getSecondaryFormat()), csv(h.getCurrency()));
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
 }
