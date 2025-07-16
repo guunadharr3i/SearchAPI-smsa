@@ -29,7 +29,6 @@ public class SwiftMessageExportService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportService.class);
 
-
     @Autowired
     private SwiftMessageService swiftMessageService;
 
@@ -46,7 +45,8 @@ public class SwiftMessageExportService {
         int rowsPerFile = Math.max(1, (int) ((1024 * 1024 * 0.9) / estimatedRowSize));
         int totalFiles = (int) Math.ceil(headers.size() / (double) rowsPerFile);
 
-        log.info("Total records: {}, Estimated row size: {}, Rows/file: {}, Files: {}", headers.size(), estimatedRowSize, rowsPerFile, totalFiles);
+        log.info("Total records: {}, Estimated row size: {}, Rows/file: {}, Files: {}", headers.size(),
+                estimatedRowSize, rowsPerFile, totalFiles);
 
         File tempDir = new File(folderPath, "temp_xls_" + System.currentTimeMillis());
         tempDir.mkdirs();
@@ -62,7 +62,8 @@ public class SwiftMessageExportService {
         return zipPath;
     }
 
-    private void writeChunksToXlsxFiles(List<SwiftMessageHeaderPojo> headers, File tempDir, int rowsPerFile) throws IOException {
+    private void writeChunksToXlsxFiles(List<SwiftMessageHeaderPojo> headers, File tempDir, int rowsPerFile)
+            throws IOException {
         int fileCount = 1;
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
             List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
@@ -79,7 +80,7 @@ public class SwiftMessageExportService {
                 sheet.autoSizeColumn(col);
             }
 
-            File file = new File(tempDir, "swift_headers_" + fileCount++ + ".xlsx");
+            File file = new File(tempDir, "General_Search_Report_" + fileCount++ + ".xlsx");
             try (FileOutputStream fos = new FileOutputStream(file)) {
                 workbook.write(fos);
                 log.info("Created XLSX: {} with {} rows", file.getName(), chunk.size());
@@ -91,33 +92,33 @@ public class SwiftMessageExportService {
 
     private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
         row.createCell(0).setCellValue(safeLong(h.getMessageId()));
-        row.createCell(1).setCellValue(safe(h.getFileName()));
-        row.createCell(2).setCellValue(safe(h.getDate()));
-        row.createCell(3).setCellValue(safe(h.getTime()));
+        row.createCell(1).setCellValue(safe(h.getInpOut()));
+        row.createCell(2).setCellValue(safe(h.getSenderBic()));
+        row.createCell(3).setCellValue(safe(h.getReceiverBic()));
         row.createCell(4).setCellValue(safeInt(h.getMtCode()));
-        row.createCell(5).setCellValue(safeInt(h.getPage()));
-        row.createCell(9).setCellValue(safe(h.getPriority()));
-        row.createCell(10).setCellValue(safe(h.getFileType()));
-        row.createCell(12).setCellValue(safe(h.getInputRefNo()));
-        row.createCell(13).setCellValue(safe(h.getOutputRefNo()));
-        row.createCell(14).setCellValue(safe(h.getInpOut()));
-        row.createCell(15).setCellValue(safe(h.getMsgDesc()));
-        row.createCell(16).setCellValue(safe(h.getMsgType()));
-        row.createCell(17).setCellValue(safe(h.getSlaId()));
-        row.createCell(18).setCellValue(safe(h.getSenderBic()));
-        row.createCell(20).setCellValue(safe(h.getSenderBicDesc()));
-        row.createCell(22).setCellValue(safe(h.getReceiverBic()));
-        row.createCell(23).setCellValue(safe(h.getReceiverBicDesc()));
-        row.createCell(24).setCellValue(safe(h.getUserRef()));
-        row.createCell(25).setCellValue(safe(h.getTransactionRef()));
-        row.createCell(26).setCellValue(safe(h.getFileDate()));
-        row.createCell(27).setCellValue(safe(h.getMur()));
-        row.createCell(28).setCellValue(safe(h.getUetr()));
-        row.createCell(29).setCellValue(safe(h.getTransactionAmount()));
-        row.createCell(30).setCellValue(safe(h.getTransactionResult()));
-        row.createCell(31).setCellValue(safe(h.getPrimaryFormat()));
-        row.createCell(32).setCellValue(safe(h.getSecondaryFormat()));
-        row.createCell(33).setCellValue(safe(h.getCurrency()));
+        // row.createCell(5).setCellValue(safeInt(h.getPage()));
+        row.createCell(9).setCellValue(safe(h.getDate()));
+        row.createCell(10).setCellValue(safe(h.getTime()));
+        row.createCell(12).setCellValue(safe(h.getFileType()));
+        row.createCell(13).setCellValue(safe(h.getCurrency()));
+        row.createCell(14).setCellValue(safe(h.getTransactionAmount()));
+        row.createCell(15).setCellValue(safe(h.getUetr()));
+        row.createCell(16).setCellValue(safe(h.getInputRefNo()));
+        row.createCell(17).setCellValue(safe(h.getOutputRefNo()));
+        row.createCell(18).setCellValue(safe(h.getFileName()));
+        row.createCell(20).setCellValue(safe(h.getMsgDesc()));
+        row.createCell(22).setCellValue(safe(h.getMsgType()));
+        row.createCell(23).setCellValue(safe(h.getSlaId()));
+        row.createCell(24).setCellValue(safe(h.getPriority()));
+        row.createCell(25).setCellValue(safe(h.getSenderBicDesc()));
+        row.createCell(26).setCellValue(safe(h.getReceiverBicDesc()));
+        row.createCell(27).setCellValue(safe(h.getUserRef()));
+        row.createCell(28).setCellValue(safe(h.getTransactionRef()));
+        row.createCell(29).setCellValue(safe(h.getFileDate()));
+        row.createCell(30).setCellValue(safe(h.getMur()));
+        row.createCell(31).setCellValue(safe(h.getTransactionResult()));
+        row.createCell(32).setCellValue(safe(h.getPrimaryFormat()));
+        row.createCell(33).setCellValue(safe(h.getSecondaryFormat()));
     }
 
     private void zipFiles(File directory, String zipPath) throws IOException {
@@ -151,7 +152,7 @@ public class SwiftMessageExportService {
                 }
             }
         }
-       try {
+        try {
             Files.delete(tempDir.toPath());
         } catch (IOException e) {
             log.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath(), e);
@@ -163,14 +164,13 @@ public class SwiftMessageExportService {
         Sheet sheet = workbook.createSheet("Swift Headers");
 
         String[] headers = {
-            "SMSA_MESSAGE_ID", "SMSA_FILE_NAME", "SMSA_DATE", "SMSA_TIME", "SMSA_MT_CODE",
-            "SMSA_PAGE", "SMSA_PRIORITY",
-            "SMSA_FILE_TYPE", "SMSA_INPUT_REF_NO", "SMSA_OUTPUT_REF_NO",
-            "SMSA_MSG_IO", "SMSA_MSG_DESC", "SMSA_MSG_TYPE", "SMSA_SLA_ID", "SMSA_SENDER_BIC",
-            "SMSA_SENDER_BIC_DESC", "SMSA_RECEIVER_BIC",
-            "SMSA_RECEIVER_BIC_DESC", "SMSA_USER_REF", "SMSA_TXN_REF", "SMSA_FILE_DATE",
-            "SMSA_MUR", "SMSA_UETR", "SMSA_TXN_AMOUNT", "SMSA_TXN_RESULT", "SMSA_PRIMARY_FMT", "SMSA_SECONDARY_FMT",
-            "SMSA_MSG_CURRENCY"
+                "Message Id", "Identifier", "Sender", "Receiver", "MT Code",
+                "Date",
+                "Time", "File Type", "Currency", "Amount", "uetr", "Input Ref No", "Output Ref No",
+                "File Name", "Message Desc", "Message Type", "SLA ID", "Priority",
+                "Sender BIC Desc",
+                "Receiver BIC Desc", "User Ref", "Transaction Ref", "File Date",
+                "MUR", "Transaction Result", "Primary FMT", "Secondary FMT"
         };
 
         Row headerRow = sheet.createRow(0);
@@ -181,14 +181,18 @@ public class SwiftMessageExportService {
     }
 
     private int estimateRowSize(SwiftMessageHeaderPojo h) {
-        String raw = safeLong(h.getMessageId()) + safe(h.getFileName()) + safe(h.getDate()) + safe(h.getTime()) + safeInt(h.getMtCode())
-                + safeInt(h.getPage()) + safe(h.getPriority())
-                + safe(h.getFileType()) + safe(h.getInputRefNo()) + safe(h.getOutputRefNo())
-                + safe(h.getInpOut()) + safe(h.getMsgDesc()) + safe(h.getMsgType()) + safe(h.getSlaId()) + safe(h.getSenderBic())
-                + safe(h.getSenderBicDesc()) + safe(h.getReceiverBic())
-                + safe(h.getReceiverBicDesc()) + safe(h.getUserRef()) + safe(h.getTransactionRef()) + safe(h.getFileDate())
-                + safe(h.getMur()) + safe(h.getUetr()) + safe(h.getTransactionAmount()) + safe(h.getTransactionResult()) + safe(h.getPrimaryFormat())
-                + safe(h.getSecondaryFormat()) + safe(h.getCurrency());
+        String raw = safeLong(h.getMessageId()) + safe(h.getInpOut()) + safe(h.getSenderBic()) + safe(h.getReceiverBic())
+                + safeInt(h.getMtCode())
+                + safe(h.getDate())
+                + safe(h.getTime()) + safe(h.getFileType()) + safe(h.getCurrency())
+                + safe(h.getTransactionAmount()) + safe(h.getUetr()) + safe(h.getInputRefNo()) + safe(h.getOutputRefNo())
+                + safe(h.getFileName())
+                + safe(h.getMsgDesc()) + safe(h.getMsgType())
+                + safe(h.getSlaId()) + safe(h.getPriority()) + safe(h.getSenderBicDesc())
+                + safe(h.getReceiverBicDesc())
+                + safe(h.getUserRef()) + safe(h.getTransactionRef()) + safe(h.getFileDate()) + safe(h.getMur())
+                + safe(h.getTransactionResult())
+                + safe(h.getPrimaryFormat()) + safe(h.getSecondaryFormat());
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
 
