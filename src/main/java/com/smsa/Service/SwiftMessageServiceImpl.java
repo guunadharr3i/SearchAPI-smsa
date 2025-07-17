@@ -145,7 +145,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             return cb.lessThanOrEqualTo(root.get("fileDate"), (Comparable) value);
         }
 
-        if (value instanceof List) {
+        if (value instanceof List && value != null && !((List<?>) value).isEmpty()) {
             return handleListPredicate(fieldName, (List<?>) value, cb, root);
         }
 
@@ -210,7 +210,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         pojo.setUetr(entity.getUetr());
         pojo.setRawTxt(entity.getRawMessageData());
         pojo.setCurrency(entity.getCurrency());
-        pojo.setTransactionAmount(entity.getTransactionAmount()==null?"":entity.getTransactionAmount().toString());
+        pojo.setTransactionAmount(entity.getTransactionAmount() == null ? "" : entity.getTransactionAmount().toString());
 
         return pojo;
     }
