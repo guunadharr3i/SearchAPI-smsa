@@ -210,7 +210,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         pojo.setUetr(entity.getUetr());
         pojo.setRawTxt(entity.getRawMessageData());
         pojo.setCurrency(entity.getCurrency());
-        pojo.setTransactionAmount(entity.getTransactionAmount().toString());
+        pojo.setTransactionAmount(entity.getTransactionAmount()==null?"":entity.getTransactionAmount().toString());
 
         return pojo;
     }

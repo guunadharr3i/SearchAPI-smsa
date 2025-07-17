@@ -138,10 +138,10 @@ public class SwiftMessageController {
     }
 
     @PostMapping("/decryptMessageTypes")
-    public ResponseEntity<?> decryptResponse(@RequestBody String encryptedData) {
+    public ResponseEntity<?> decryptResponse(@RequestBody EncryptedtPayloadRequest request) {
         logger.info("Request received to decrypt data.");
         try {
-            String decryptedJson = AESUtil.decrypt(encryptedData, secretKey, viKey);
+            String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
 
             // If needed, parse JSON
             ObjectMapper mapper = new ObjectMapper();
