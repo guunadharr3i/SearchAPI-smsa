@@ -26,6 +26,7 @@ import javax.persistence.criteria.Root;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -164,11 +165,16 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             return null;
         }
 
+        List<Predicate> likePredicates = new ArrayList<>();
+
         if (list.get(0) instanceof String) {
-            List<Predicate> likePredicates = new ArrayList<>();
             for (Object item : list) {
                 if (item != null) {
-                    likePredicates.add(cb.like(cb.lower(root.get(fieldName)), "%" + escapeLike(item.toString().toLowerCase()) + "%"));
+                    // Convert column to string using TO_CHAR
+                    Expression<String> fieldAsString = cb.function("TO_CHAR", String.class, root.get(fieldName));
+                    likePredicates.add(
+                            cb.like(cb.lower(fieldAsString), "%" + escapeLike(item.toString().toLowerCase()) + "%")
+                    );
                 }
             }
             return cb.or(likePredicates.toArray(new Predicate[0]));
@@ -203,6 +209,8 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         pojo.setMur(entity.getMur());
         pojo.setUetr(entity.getUetr());
         pojo.setRawTxt(entity.getRawMessageData());
+        pojo.setCurrency(entity.getCurrency());
+        pojo.setTransactionAmount(entity.getTransactionAmount().toString());
 
         return pojo;
     }

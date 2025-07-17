@@ -38,7 +38,7 @@ public class SwiftMessageHeaderPojo {
     private LocalDate fileDate;
     private String mur;
     private String uetr;
-    private BigDecimal transactionAmount;
+    private String transactionAmount;
     private String transactionResult;
     private String primaryFormat;
     private String secondaryFormat;
@@ -403,14 +403,14 @@ public class SwiftMessageHeaderPojo {
     /**
      * @return the transactionAmount
      */
-    public BigDecimal getTransactionAmount() {
+    public String getTransactionAmount() {
         return transactionAmount;
     }
 
     /**
      * @param transactionAmount the transactionAmount to set
      */
-    public void setTransactionAmount(BigDecimal transactionAmount) {
+    public void setTransactionAmount(String transactionAmount) {
         this.transactionAmount = transactionAmount;
     }
 

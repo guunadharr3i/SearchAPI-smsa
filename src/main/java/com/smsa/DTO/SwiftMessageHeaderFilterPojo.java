@@ -30,7 +30,7 @@ public class SwiftMessageHeaderFilterPojo {
     private List<LocalDate> fileDate;
     private List<String> mur;
     private List<String> uetr;
-    private List<BigDecimal> transactionAmount;
+    private List<String> transactionAmount;
     private List<String> transactionResult;
     private List<String> primaryFormat;
     private List<String> secondaryFormat;
@@ -224,11 +224,11 @@ public class SwiftMessageHeaderFilterPojo {
         this.uetr = uetr;
     }
 
-    public List<BigDecimal> getTransactionAmount() {
+    public List<String> getTransactionAmount() {
         return transactionAmount;
     }
 
-    public void setTransactionAmount(List<BigDecimal> transactionAmount) {
+    public void setTransactionAmount(List<String> transactionAmount) {
         this.transactionAmount = transactionAmount;
     }
 
