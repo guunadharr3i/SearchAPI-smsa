@@ -14,7 +14,8 @@ public enum ErrorCode {
     DATA_NOT_FOUND(404, "Requested data not found"),
     VALIDATION_ERROR(400, "Invalid input data"),
     INTERNAL_ERROR(500, "Internal server error"),
-    UNAUTHORIZED(403, "You are not authorized to access this resource");
+    UNAUTHORIZED(403, "You are not authorized to access this resource"),
+    DECRYPTION_FAILED(501,"Decryption Failed");
 
     private final int code;
     private final String defaultMessage;

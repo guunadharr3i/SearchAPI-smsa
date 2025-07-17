@@ -99,27 +99,37 @@ public class SwiftMessageController {
 
     @PostMapping("/getMessageTypes")
     public ResponseEntity<?> getMessageTypes(@RequestBody AuthRequest request) {
-        logger.info("Request received to  get messageTypes.");
+        logger.info("Request received to get messageTypes.");
         try {
             String token = request.getToken();
             String deviceHash = request.getDeviceHash();
+
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
+
             logger.info("Encrypted Token: {}", token);
             logger.info("Encrypted Device Hash: {}", deviceHash);
+
             String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
             if (accessToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
             }
+
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());
-             ObjectMapper mapper = new ObjectMapper();
-            // Step 6: Convert to JSON and encrypt
-            String jsonResponse = mapper.writeValueAsString(data);
+
+            ObjectMapper mapper = new ObjectMapper();
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("messageTypes", data);
+            responseData.put("accessToken", accessToken);
+
+            String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
+
         } catch (Exception e) {
             logger.error("Error fetching Message Type data: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -127,15 +137,29 @@ public class SwiftMessageController {
         }
     }
 
+    @PostMapping("/decryptMessageTypes")
+    public ResponseEntity<?> decryptResponse(@RequestBody String encryptedData) {
+        logger.info("Request received to decrypt data.");
+        try {
+            String decryptedJson = AESUtil.decrypt(encryptedData, secretKey, viKey);
+
+            // If needed, parse JSON
+            ObjectMapper mapper = new ObjectMapper();
+            Object json = mapper.readValue(decryptedJson, Object.class);
+
+            return ResponseEntity.ok(json); // Returns plain JSON (Map or List)
+
+        } catch (Exception e) {
+            logger.error("Error decrypting data: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiResponse<>(ErrorCode.DECRYPTION_FAILED));
+        }
+    }
+
     @GetMapping
     public String hello() {
         logger.info("Health check called at root endpoint.");
         return "Hey Developer! I am SMSA Search api,My Deployment Successful";
-    }
-
-    @GetMapping("/totalRecords")
-    public List<SwiftMessageHeaderPojo> totalData() {
-        return service.getTotalData();
     }
 
     @PostMapping("/encryptFilter")
