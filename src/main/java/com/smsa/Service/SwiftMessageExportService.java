@@ -21,7 +21,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -43,10 +42,10 @@ public class SwiftMessageExportService {
         }
 
         int estimatedRowSize = estimateRowSize(headers.get(0)) + 500;
-        int rowsPerFile = Math.max(1, (int) ((1024 * 1024 * 0.9) / estimatedRowSize));
-        int totalFiles = (int) Math.ceil(headers.size() / (double) rowsPerFile);
+        int sizeBasedRowLimit = Math.max(1, (int) ((1024 * 1024 * 0.9) / estimatedRowSize));
+        int rowsPerFile = Math.min(65530, sizeBasedRowLimit); // limit to .xls safe max
 
-        log.info("Total records: {}, Estimated row size: {}, Rows/file: {}, Files: {}", headers.size(), estimatedRowSize, rowsPerFile, totalFiles);
+        log.info("Total records: {}, Estimated row size: {}, Rows/file: {}", headers.size(), estimatedRowSize, rowsPerFile);
 
         File tempDir = new File(folderPath, "temp_xls_" + System.currentTimeMillis());
         tempDir.mkdirs();
@@ -123,13 +122,12 @@ public class SwiftMessageExportService {
         headerRow.createCell(24).setCellValue("Transaction Result");
         headerRow.createCell(25).setCellValue("Primary FMT");
         headerRow.createCell(26).setCellValue("Secondary FMT");
-        
-        // Add up to 34 headers
 
+        // Add up to 34 headers
         return workbook;
     }
 
-     private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
+    private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
         row.createCell(0).setCellValue(safeLong(h.getMessageId()));
         row.createCell(1).setCellValue(safe(h.getInpOut()));
         row.createCell(2).setCellValue(safe(h.getSenderBic()));
@@ -217,8 +215,7 @@ public class SwiftMessageExportService {
 //        }
 //        return workbook;
 //    }
-
-     private int estimateRowSize(SwiftMessageHeaderPojo h) {
+    private int estimateRowSize(SwiftMessageHeaderPojo h) {
         String raw = safeLong(h.getMessageId()) + safe(h.getInpOut()) + safe(h.getSenderBic()) + safe(h.getReceiverBic())
                 + safeInt(h.getMtCode())
                 + safe(h.getDate())
