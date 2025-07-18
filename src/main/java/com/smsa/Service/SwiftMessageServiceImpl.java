@@ -121,10 +121,30 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
                         if (!fieldName.equals("columnSort")) {
-                            Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
-                            if (predicate != null) {
-                                predicates.add(predicate);
+                            if (value instanceof List) {
+                                List<?> rawList = (List<?>) value;
+
+                                // Remove nulls and empty strings with only spaces
+                                List<?> filteredList = rawList.stream()
+                                        .filter(Objects::nonNull)
+                                        .filter(item -> !(item instanceof String) || !((String) item).trim().isEmpty())
+                                        .collect(Collectors.toList());
+
+                                if (!filteredList.isEmpty()) {
+                                    Predicate predicate = buildPredicateForField(fieldName, filteredList, cb, root);
+                                    if (predicate != null) {
+                                        predicates.add(predicate);
+                                    }
+                                }
                             }
+
+                            if (value instanceof Comparable) {
+                                Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                                if (predicate != null) {
+                                    predicates.add(predicate);
+                                }
+                            }
+
                         }
                     }
                 }
