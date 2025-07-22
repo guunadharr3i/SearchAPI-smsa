@@ -38,7 +38,7 @@ public class SwiftMessageHeaderFilterPojo {
     private LocalDate dateFrom;
     private LocalDate dateTo;
      private List<String> columnSort;
-     private String orderType;
+     private String sortType;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -298,14 +298,14 @@ public class SwiftMessageHeaderFilterPojo {
     /**
      * @return the orderType
      */
-    public String getOrderType() {
-        return orderType;
+    public String getSortType() {
+        return sortType;
     }
 
     /**
      * @param orderType the orderType to set
      */
-    public void setOrderType(String orderType) {
-        this.orderType = orderType;
+    public void setSortType(String orderType) {
+        this.sortType = orderType;
     }
 }

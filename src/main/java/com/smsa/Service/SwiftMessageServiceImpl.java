@@ -72,12 +72,14 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 query.where(cb.and(predicates.toArray(new Predicate[0])));
             }
             List<Order> orderOfSorting = new ArrayList<>();
-            orderOfSorting.add(cb.desc(root.get("fileDate")));
+            if (!filter.getColumnSort().contains("fileDate")) {
+                orderOfSorting.add(cb.desc(root.get("fileDate")));
+            }
             if (filter.getColumnSort() != null && !filter.getColumnSort().isEmpty()) {
                 logger.info("Sortimg by columns: " + "fileDate");
                 for (String column : filter.getColumnSort()) {
                     logger.info("," + column);
-                    if (filter.getOrderType().equals("DESC")) {
+                    if (filter.getSortType().equals("DESC")) {
                         orderOfSorting.add(cb.desc(root.get(column)));
                     } else {
                         orderOfSorting.add(cb.asc(root.get(column)));
