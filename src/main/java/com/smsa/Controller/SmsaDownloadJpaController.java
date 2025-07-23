@@ -109,6 +109,7 @@ public class SmsaDownloadJpaController {
         try {
             String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
             String filePath = exportService.exportSwiftHeadersToZip(path, filters);
+            logger.info("after getting out from service with file path: " + filePath);
             File zipFile = new File(filePath);
 
             if (!zipFile.exists()) {
@@ -119,6 +120,10 @@ public class SmsaDownloadJpaController {
 
             return getFileDownloadResponse(zipFile, "swift_xls_export.zip");
         } catch (IOException e) {
+            logger.error("Failed to export Excel zip", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
+        } catch (Exception e) {
             logger.error("Failed to export Excel zip", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
@@ -244,6 +249,7 @@ public class SmsaDownloadJpaController {
     }
 
     private ResponseEntity<InputStreamResource> getFileDownloadResponse(File zipFile, String fileName) throws IOException {
+        logger.info("inside getFIleDownloadRepone Method  with file name :" + fileName + " file path: " + zipFile.getAbsolutePath());
         InputStreamResource resource = new InputStreamResource(new FileInputStream(zipFile));
 
         return ResponseEntity.ok()
@@ -278,7 +284,7 @@ public class SmsaDownloadJpaController {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", "swift_headers.xlsx");
+            headers.setContentDispositionFormData("attachment", "swift_headers.xls");
 
             return ResponseEntity.ok()
                     .headers(headers)
