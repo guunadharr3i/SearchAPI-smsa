@@ -1,8 +1,8 @@
 package com.smsa.DTO;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public class SwiftMessageHeaderFilterPojo {
@@ -37,7 +37,7 @@ public class SwiftMessageHeaderFilterPojo {
     private List<String> currency;
     private LocalDate dateFrom;
     private LocalDate dateTo;
-     private List<String> columnSort;
+    private List<String> columnSort= new ArrayList<>();
      private String sortType="DESC";
 
     // Getters and Setters

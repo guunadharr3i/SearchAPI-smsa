@@ -73,7 +73,9 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             }
             List<Order> orderOfSorting = new ArrayList<>();
 
-            orderOfSorting.add(cb.desc(root.get("fileDate")));
+            if (!filter.getColumnSort().contains("fileDate")) {
+                filter.getColumnSort().add("fileDate");
+            }
 
             if (filter.getColumnSort() != null && !filter.getColumnSort().isEmpty()) {
                 logger.info("Sortimg by columns: " + "fileDate");
