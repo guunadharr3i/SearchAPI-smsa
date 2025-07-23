@@ -81,13 +81,11 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 logger.info("Sortimg by columns: " + "fileDate");
                 for (String column : filter.getColumnSort()) {
                     logger.info("," + column);
-                    if (!"fileDate".equals(column)) {
                         if (filter.getSortType().equals("DESC")) {
                             orderOfSorting.add(cb.desc(root.get(column)));
                         } else {
                             orderOfSorting.add(cb.asc(root.get(column)));
                         }
-                    }
                 }
             }
             query.orderBy(orderOfSorting);
