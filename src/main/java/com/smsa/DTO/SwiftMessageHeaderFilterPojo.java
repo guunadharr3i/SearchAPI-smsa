@@ -38,7 +38,7 @@ public class SwiftMessageHeaderFilterPojo {
     private LocalDate dateFrom;
     private LocalDate dateTo;
      private List<String> columnSort;
-     private String sortType;
+     private String sortType="DESC";
 
     // Getters and Setters
     public List<Long> getMessageId() {

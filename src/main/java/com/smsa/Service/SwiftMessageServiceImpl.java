@@ -72,17 +72,19 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 query.where(cb.and(predicates.toArray(new Predicate[0])));
             }
             List<Order> orderOfSorting = new ArrayList<>();
-            if (!filter.getColumnSort().contains("fileDate")) {
-                orderOfSorting.add(cb.desc(root.get("fileDate")));
-            }
+
+            orderOfSorting.add(cb.desc(root.get("fileDate")));
+
             if (filter.getColumnSort() != null && !filter.getColumnSort().isEmpty()) {
                 logger.info("Sortimg by columns: " + "fileDate");
                 for (String column : filter.getColumnSort()) {
                     logger.info("," + column);
-                    if (filter.getSortType().equals("DESC")) {
-                        orderOfSorting.add(cb.desc(root.get(column)));
-                    } else {
-                        orderOfSorting.add(cb.asc(root.get(column)));
+                    if (!"fileDate".equals(column)) {
+                        if (filter.getSortType().equals("DESC")) {
+                            orderOfSorting.add(cb.desc(root.get(column)));
+                        } else {
+                            orderOfSorting.add(cb.asc(root.get(column)));
+                        }
                     }
                 }
             }
@@ -123,35 +125,33 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 String fieldName = pd.getName();
                 Object value;
 
-                if (!"class".equals(fieldName)) {
+                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName)) {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
-                        if (!fieldName.equals("columnSort")) {
-                            if (value instanceof List) {
-                                List<?> rawList = (List<?>) value;
+                        if (value instanceof List) {
+                            List<?> rawList = (List<?>) value;
 
-                                // Remove nulls and empty strings with only spaces
-                                List<?> filteredList = rawList.stream()
-                                        .filter(Objects::nonNull)
-                                        .filter(item -> !(item instanceof String) || !((String) item).trim().isEmpty())
-                                        .collect(Collectors.toList());
+                            // Remove nulls and empty strings with only spaces
+                            List<?> filteredList = rawList.stream()
+                                    .filter(Objects::nonNull)
+                                    .filter(item -> !(item instanceof String) || !((String) item).trim().isEmpty())
+                                    .collect(Collectors.toList());
 
-                                if (!filteredList.isEmpty()) {
-                                    Predicate predicate = buildPredicateForField(fieldName, filteredList, cb, root);
-                                    if (predicate != null) {
-                                        predicates.add(predicate);
-                                    }
-                                }
-                            }
-
-                            if (value instanceof Comparable) {
-                                Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                            if (!filteredList.isEmpty()) {
+                                Predicate predicate = buildPredicateForField(fieldName, filteredList, cb, root);
                                 if (predicate != null) {
                                     predicates.add(predicate);
                                 }
                             }
-
                         }
+
+                        if (value instanceof Comparable) {
+                            Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                            if (predicate != null) {
+                                predicates.add(predicate);
+                            }
+                        }
+
                     }
                 }
             }
