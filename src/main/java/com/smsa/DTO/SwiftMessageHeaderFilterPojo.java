@@ -39,7 +39,7 @@ public class SwiftMessageHeaderFilterPojo {
     private LocalDate dateTo;
     private List<String> columnSort = new ArrayList<>();
     private String sortType = "DESC";
-    private String generalSearch;
+    private String generalsearch;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -311,16 +311,17 @@ public class SwiftMessageHeaderFilterPojo {
     }
 
     /**
-     * @return the generalSearch
+     * @return the generalsearch
      */
-    public String getGeneralSearch() {
-        return generalSearch;
+    public String getGeneralsearch() {
+        return generalsearch;
     }
 
     /**
-     * @param generalSearch the generalSearch to set
+     * @param generalsearch the generalsearch to set
      */
-    public void setGeneralSearch(String generalSearch) {
-        this.generalSearch = generalSearch;
+    public void setGeneralsearch(String generalsearch) {
+        this.generalsearch = generalsearch;
     }
+
 }
