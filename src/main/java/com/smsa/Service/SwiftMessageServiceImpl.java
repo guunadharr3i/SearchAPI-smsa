@@ -81,11 +81,11 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 logger.info("Sortimg by columns: " + "fileDate");
                 for (String column : filter.getColumnSort()) {
                     logger.info("," + column);
-                        if (filter.getSortType().equals("DESC")) {
-                            orderOfSorting.add(cb.desc(root.get(column)));
-                        } else {
-                            orderOfSorting.add(cb.asc(root.get(column)));
-                        }
+                    if (filter.getSortType().equals("DESC")) {
+                        orderOfSorting.add(cb.desc(root.get(column)));
+                    } else {
+                        orderOfSorting.add(cb.asc(root.get(column)));
+                    }
                 }
             }
             query.orderBy(orderOfSorting);
@@ -125,7 +125,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 String fieldName = pd.getName();
                 Object value;
 
-                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName)) {
+                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName) && !"generalSearch".equals(fieldName)) {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
                         if (value instanceof List) {
@@ -143,9 +143,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                                     predicates.add(predicate);
                                 }
                             }
-                        }
-
-                        if (value instanceof Comparable) {
+                        } else {
                             Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
                             if (predicate != null) {
                                 predicates.add(predicate);

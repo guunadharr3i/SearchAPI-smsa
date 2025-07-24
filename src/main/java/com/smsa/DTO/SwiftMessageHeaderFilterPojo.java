@@ -25,11 +25,11 @@ public class SwiftMessageHeaderFilterPojo {
     private List<String> senderBicDesc;
     private List<String> receiverBic;
     private List<String> receiverBicDesc;
-    private List<String> userRef;
+    private String userRef;
     private List<String> transactionRef;
     private List<LocalDate> fileDate;
     private List<String> mur;
-    private List<String> uetr;
+    private String uetr;
     private List<String> transactionAmount;
     private List<String> transactionResult;
     private List<String> primaryFormat;
@@ -37,8 +37,9 @@ public class SwiftMessageHeaderFilterPojo {
     private List<String> currency;
     private LocalDate dateFrom;
     private LocalDate dateTo;
-    private List<String> columnSort= new ArrayList<>();
-     private String sortType="DESC";
+    private List<String> columnSort = new ArrayList<>();
+    private String sortType = "DESC";
+    private String generalSearch;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -185,11 +186,11 @@ public class SwiftMessageHeaderFilterPojo {
         this.receiverBicDesc = receiverBicDesc;
     }
 
-    public List<String> getUserRef() {
+    public String getUserRef() {
         return userRef;
     }
 
-    public void setUserRef(List<String> userRef) {
+    public void setUserRef(String userRef) {
         this.userRef = userRef;
     }
 
@@ -217,11 +218,11 @@ public class SwiftMessageHeaderFilterPojo {
         this.mur = mur;
     }
 
-    public List<String> getUetr() {
+    public String getUetr() {
         return uetr;
     }
 
-    public void setUetr(List<String> uetr) {
+    public void setUetr(String uetr) {
         this.uetr = uetr;
     }
 
@@ -307,5 +308,19 @@ public class SwiftMessageHeaderFilterPojo {
      */
     public void setSortType(String orderType) {
         this.sortType = orderType;
+    }
+
+    /**
+     * @return the generalSearch
+     */
+    public String getGeneralSearch() {
+        return generalSearch;
+    }
+
+    /**
+     * @param generalSearch the generalSearch to set
+     */
+    public void setGeneralSearch(String generalSearch) {
+        this.generalSearch = generalSearch;
     }
 }
