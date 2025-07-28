@@ -1,18 +1,5 @@
 package com.smsa.Controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.smsa.DTO.FilterRequest;
-import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.Enums.ApiResponseCode;
-import com.smsa.NameConstants.AppConstants;
-import com.smsa.ResponseWrappers.DownloadApiResponse;
-import com.smsa.Service.*;
-import com.smsa.Utils.EncryptedtPayloadRequest;
-import com.smsa.encryption.AESUtil;
-import com.smsa.tokenValidation.AuthenticateAPi;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,8 +11,37 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.InputStreamResource;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.smsa.DTO.FilterRequest;
+import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
+import com.smsa.Enums.ApiResponseCode;
+import com.smsa.NameConstants.AppConstants;
+import com.smsa.ResponseWrappers.DownloadApiResponse;
+import com.smsa.Service.SelectedCsvFileService;
+import com.smsa.Service.SwiftMessageCsvExportService;
+import com.smsa.Service.SwiftMessageExcelExportService;
+import com.smsa.Service.SwiftMessageExportPdfService;
+import com.smsa.Service.SwiftMessageExportService;
+import com.smsa.Service.SwiftMessageExportTxtService;
+import com.smsa.Service.TxtFilesService;
+import com.smsa.Utils.EncryptedtPayloadRequest;
+import com.smsa.encryption.AESUtil;
+import com.smsa.tokenValidation.AuthenticateAPi;
 
 @RestController
 @RequestMapping
@@ -60,12 +76,12 @@ public class SmsaDownloadJpaController {
             @RequestBody EncryptedtPayloadRequest encryptedRequest,
             @RequestParam String downloadType) {
         logger.info("Inside GetFIltered messages method");
-        logger.info("Selected downloadType: "+downloadType);
+        logger.info("Selected downloadType: " + downloadType);
 
         try {
             // Step 1: Decrypt incoming payload
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
-            logger.info("DecryptedJson: "+decryptedJson);
+            logger.info("DecryptedJson: " + decryptedJson);
             // Step 2: Convert decrypted JSON to FilterRequest
             ObjectMapper mapper = new ObjectMapper();
             mapper.registerModule(new JavaTimeModule());
@@ -78,8 +94,8 @@ public class SmsaDownloadJpaController {
                         .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
             }
             switch (downloadType.toUpperCase()) {
-                case "XLSX":
-                    return exportSwiftHeadersToExcel(filter.getFilter());
+//                case "XLSX":
+//                    return exportSwiftHeadersToExcel(filter.getFilter());
                 case "TXT":
                     return exportTxtZip(filter.getFilter());
                 case "CSV":
@@ -102,6 +118,59 @@ public class SmsaDownloadJpaController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
         }
+    }
+
+    @PostMapping("/download/XLSX")
+    public ResponseEntity<StreamingResponseBody> getFilteredMessagesXL(
+            @RequestBody EncryptedtPayloadRequest encryptedRequest,
+            @RequestParam String downloadType) {
+
+        logger.info("Inside GetFiltered messages method");
+        logger.info("Selected downloadType: {}", downloadType);
+
+        try {
+            // Decrypt and process payload
+            String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
+            logger.info("DecryptedJson: {}", decryptedJson);
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
+
+            // Authentication (commented out)
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            if (accessToken == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+
+            switch (downloadType.toUpperCase()) {
+                case "XLSX":
+                    return exportSwiftHeadersToExcels(filter.getFilter());
+                // Add other cases that return StreamingResponseBody
+                default:
+                    // Return error as StreamingResponseBody or change method signature
+                    return createErrorResponse("Invalid download type: " + downloadType);
+            }
+
+        } catch (JsonProcessingException e) {
+            logger.error("JSON processing error while processing download request", e);
+            return createErrorResponse("Invalid request format");
+        } catch (Exception e) {
+            logger.error("Exception while processing download request", e);
+            return createErrorResponse("Internal server error");
+        }
+    }
+
+    private ResponseEntity<StreamingResponseBody> createErrorResponse(String message) {
+        StreamingResponseBody errorBody = outputStream -> {
+            try {
+                outputStream.write(message.getBytes());
+            } catch (IOException e) {
+                logger.error("Error writing error response", e);
+            }
+        };
+        return ResponseEntity.badRequest().body(errorBody);
     }
 
     public ResponseEntity<?> exportSwiftHeadersToExcel(SwiftMessageHeaderFilterPojo filters) {
@@ -127,6 +196,28 @@ public class SmsaDownloadJpaController {
             logger.error("Failed to export Excel zip", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
+        }
+    }
+
+    public ResponseEntity<StreamingResponseBody> exportSwiftHeadersToExcels(SwiftMessageHeaderFilterPojo filters) {
+        logger.info("Exporting data to Excel zip");
+        try {
+            String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
+            String filePath = exportService.exportSwiftHeadersToZip(path, filters);
+            logger.info("after getting out from service with file path: " + filePath);
+            File zipFile = new File(filePath);
+
+            if (!zipFile.exists()) {
+                logger.warn("Excel export zip file not found at {}", filePath);
+                return createErrorResponse("");
+            }
+
+            return getFileDownloadResponse1(zipFile, "swift_xls_export.zip");
+        } catch (Exception e) {
+            logger.error("Failed to export Excel zip", e);
+            // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            //         .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
+            return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name());
         }
     }
 
@@ -257,6 +348,53 @@ public class SmsaDownloadJpaController {
                 .contentLength(zipFile.length())
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
+    }
+
+    private ResponseEntity<StreamingResponseBody> getFileDownloadResponse1(File zipFile, String fileName) {
+        logger.info("Inside getFileDownloadResponse Method with file name: {} file path: {}",
+                fileName, zipFile.getAbsolutePath());
+
+        StreamingResponseBody body = outputStream -> {
+            try (FileInputStream fis = new FileInputStream(zipFile)) {
+                byte[] buffer = new byte[8192];
+                int bytesRead;
+                while ((bytesRead = fis.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+                logger.info("Successfully streamed file: {}", fileName);
+            } catch (IOException e) {
+                logger.error("Error streaming file: {}", fileName, e);
+                throw new RuntimeException("File streaming failed", e);
+            } finally {
+                // Always attempt cleanup
+                deleteFileWithRetry(zipFile);
+            }
+        };
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
+                .contentLength(zipFile.length())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(body);
+    }
+
+    private void deleteFileWithRetry(File file) {
+        int maxRetries = 3;
+        for (int i = 0; i < maxRetries; i++) {
+            if (file.delete()) {
+                logger.info("Deleted zip file after streaming: {}", file.getAbsolutePath());
+                return;
+            }
+            if (i < maxRetries - 1) {
+                try {
+                    Thread.sleep(100); // Brief pause before retry
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        logger.warn("Failed to delete zip file after {} attempts: {}", maxRetries, file.getAbsolutePath());
     }
 
     public Map<String, String> encryptTOken(FilterRequest filter) {
