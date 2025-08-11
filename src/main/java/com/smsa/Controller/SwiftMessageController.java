@@ -55,29 +55,43 @@ public class SwiftMessageController {
 
         SimpleModule customDatesModule = new SimpleModule();
 
+        // Serializer for LocalDate (same as before)
         customDatesModule.addSerializer(LocalDate.class, new JsonSerializer<LocalDate>() {
             @Override
             public void serialize(LocalDate value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
                 gen.writeString(value.toString()); // yyyy-MM-dd
             }
         });
+
+        // Updated deserializer for LocalDate to handle blank strings gracefully
         customDatesModule.addDeserializer(LocalDate.class, new JsonDeserializer<LocalDate>() {
             @Override
             public LocalDate deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                return LocalDate.parse(p.getValueAsString());
+                String dateStr = p.getValueAsString();
+                if (dateStr == null || dateStr.trim().isEmpty()) {
+                    return null; // treat blank or empty string as null
+                }
+                return LocalDate.parse(dateStr.trim());
             }
         });
 
+        // Serializer for LocalDateTime (same as before)
         customDatesModule.addSerializer(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
             @Override
             public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
                 gen.writeString(value.toString()); // yyyy-MM-ddTHH:mm:ss
             }
         });
+
+        // Updated deserializer for LocalDateTime to handle blank strings gracefully
         customDatesModule.addDeserializer(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
             @Override
             public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-                return LocalDateTime.parse(p.getValueAsString());
+                String dateTimeStr = p.getValueAsString();
+                if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
+                    return null; // treat blank or empty string as null
+                }
+                return LocalDateTime.parse(dateTimeStr.trim());
             }
         });
 
