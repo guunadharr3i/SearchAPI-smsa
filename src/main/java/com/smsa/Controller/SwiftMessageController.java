@@ -1,9 +1,10 @@
 package com.smsa.Controller;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.smsa.DTO.AuthRequest;
 import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
@@ -14,19 +15,21 @@ import com.smsa.Utils.EncryptedResponseData;
 import com.smsa.Utils.EncryptedtPayloadRequest;
 import com.smsa.encryption.AESUtil;
 import com.smsa.tokenValidation.AuthenticateAPi;
-import java.util.HashMap;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.*;
+import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping
@@ -36,12 +39,51 @@ public class SwiftMessageController {
 
     @Autowired
     private SwiftMessageService service;
+
     @Autowired
     private AuthenticateAPi authenticateApi;
+
     @Value("${aes.auth.key}")
     private String secretKey;
+
     @Value("${aes.auth.vi.key}")
     private String viKey;
+
+    // Reusable ObjectMapper without JavaTimeModule
+    private ObjectMapper getCustomMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        SimpleModule customDatesModule = new SimpleModule();
+
+        customDatesModule.addSerializer(LocalDate.class, new JsonSerializer<LocalDate>() {
+            @Override
+            public void serialize(LocalDate value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+                gen.writeString(value.toString()); // yyyy-MM-dd
+            }
+        });
+        customDatesModule.addDeserializer(LocalDate.class, new JsonDeserializer<LocalDate>() {
+            @Override
+            public LocalDate deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                return LocalDate.parse(p.getValueAsString());
+            }
+        });
+
+        customDatesModule.addSerializer(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
+            @Override
+            public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+                gen.writeString(value.toString()); // yyyy-MM-ddTHH:mm:ss
+            }
+        });
+        customDatesModule.addDeserializer(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
+            @Override
+            public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                return LocalDateTime.parse(p.getValueAsString());
+            }
+        });
+
+        mapper.registerModule(customDatesModule);
+        return mapper;
+    }
 
     @PostMapping("/searchApi")
     public ResponseEntity<ApiResponse<String>> getFilteredMessages(
@@ -52,38 +94,25 @@ public class SwiftMessageController {
         logger.info("Received encrypted request to /searchApi");
 
         try {
-            // Step 1: Decrypt incoming payload
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
+            ObjectMapper mapper = getCustomMapper();
 
-            // Step 2: Convert decrypted JSON to FilterRequest
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
-            // Step 3: Authentication
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-            }
-            // Step 4: Business Logic
+
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
-            // Step 5: Prepare response data
             EncryptedResponseData responseData = new EncryptedResponseData();
-            responseData.setAccessToken(accessToken);
+            responseData.setAccessToken(null);
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
             responseData.setCurrentPage(pagedResult.getNumber());
 
-            // Step 6: Convert to JSON and encrypt
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
 
-            // Step 7: Return encrypted response
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
 
         } catch (JsonProcessingException ex) {
@@ -108,22 +137,13 @@ public class SwiftMessageController {
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
 
-            logger.info("Encrypted Token: {}", token);
-            logger.info("Encrypted Device Hash: {}", deviceHash);
-
-            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(new ApiResponse<>(ErrorCode.TOKEN_INVALID));
-            }
-
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());
 
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = getCustomMapper();
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("messageTypes", data);
-            responseData.put("accessToken", accessToken);
+            responseData.put("accessToken", null);
 
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
@@ -142,13 +162,9 @@ public class SwiftMessageController {
         logger.info("Request received to decrypt data.");
         try {
             String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
-
-            // If needed, parse JSON
-            ObjectMapper mapper = new ObjectMapper();
+            ObjectMapper mapper = getCustomMapper();
             Object json = mapper.readValue(decryptedJson, Object.class);
-
-            return ResponseEntity.ok(json); // Returns plain JSON (Map or List)
-
+            return ResponseEntity.ok(json);
         } catch (Exception e) {
             logger.error("Error decrypting data: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -159,7 +175,7 @@ public class SwiftMessageController {
     @GetMapping
     public String hello() {
         logger.info("Health check called at root endpoint.");
-        return "Hey Developer! I am SMSA Search api,My Deployment Successful";
+        return "Hey Developer! I am SMSA Search api, My Deployment Successful";
     }
 
     @PostMapping("/encryptFilter")
@@ -167,13 +183,8 @@ public class SwiftMessageController {
         try {
             logger.info("Received request to /encryptFilter: {}", filter);
 
-            // Convert FilterRequest to JSON
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper = getCustomMapper();
             String json = mapper.writeValueAsString(filter);
-
-            // Encrypt the JSON
             String encrypted = AESUtil.encrypt(json, secretKey, viKey);
 
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encrypted));
@@ -189,13 +200,8 @@ public class SwiftMessageController {
         try {
             logger.info("Received request to /decryptFilter");
 
-            // Decrypt the encrypted payload
             String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
-
-            // Convert JSON to FilterRequest object
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
 
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
@@ -211,13 +217,8 @@ public class SwiftMessageController {
         try {
             logger.info("Received request to /decryptFilter");
 
-            // Decrypt the encrypted payload
             String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
-
-            // Convert JSON to FilterRequest object
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper = getCustomMapper();
             EncryptedResponseData filter = mapper.readValue(decryptedJson, EncryptedResponseData.class);
 
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
@@ -235,7 +236,7 @@ public class SwiftMessageController {
             refreshCall.put("token", encryptedToken);
             refreshCall.put("DeviceHash", filter.getTokenRequest().get("DeviceHash"));
         } catch (Exception e) {
-            return new HashMap();
+            return new HashMap<>();
         }
         return refreshCall;
     }
@@ -277,5 +278,4 @@ public class SwiftMessageController {
             return ResponseEntity.badRequest().body("Error fetching receiver BIC data.");
         }
     }
-
 }
