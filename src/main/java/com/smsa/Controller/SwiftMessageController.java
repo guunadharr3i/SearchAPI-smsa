@@ -112,6 +112,11 @@ public class SwiftMessageController {
             ObjectMapper mapper = getCustomMapper();
 
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            if (accessToken == null) {
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
 
             Pageable pageable = PageRequest.of(page, size);
