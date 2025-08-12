@@ -1,5 +1,7 @@
 package com.smsa.Controller;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonParser;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -24,9 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.Enums.ApiResponseCode;
@@ -42,6 +48,8 @@ import com.smsa.Service.TxtFilesService;
 import com.smsa.Utils.EncryptedtPayloadRequest;
 import com.smsa.encryption.AESUtil;
 import com.smsa.tokenValidation.AuthenticateAPi;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping
@@ -83,9 +91,7 @@ public class SmsaDownloadJpaController {
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
             logger.info("DecryptedJson: " + decryptedJson);
             // Step 2: Convert decrypted JSON to FilterRequest
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             // Step 3: Authentication
             String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
@@ -133,9 +139,7 @@ public class SmsaDownloadJpaController {
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
             logger.info("DecryptedJson: {}", decryptedJson);
 
-            ObjectMapper mapper = new ObjectMapper();
-            mapper.registerModule(new JavaTimeModule());
-            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+            ObjectMapper mapper =getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
 
             // Authentication (commented out)
@@ -458,5 +462,53 @@ public class SmsaDownloadJpaController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
         }
+    }
+    private ObjectMapper getCustomMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+
+        SimpleModule customDatesModule = new SimpleModule();
+
+        // Serializer for LocalDate (same as before)
+        customDatesModule.addSerializer(LocalDate.class, new JsonSerializer<LocalDate>() {
+            @Override
+            public void serialize(LocalDate value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+                gen.writeString(value.toString()); // yyyy-MM-dd
+            }
+        });
+
+        // Updated deserializer for LocalDate to handle blank strings gracefully
+        customDatesModule.addDeserializer(LocalDate.class, new JsonDeserializer<LocalDate>() {
+            @Override
+            public LocalDate deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                String dateStr = p.getValueAsString();
+                if (dateStr == null || dateStr.trim().isEmpty()) {
+                    return null; // treat blank or empty string as null
+                }
+                return LocalDate.parse(dateStr.trim());
+            }
+        });
+
+        // Serializer for LocalDateTime (same as before)
+        customDatesModule.addSerializer(LocalDateTime.class, new JsonSerializer<LocalDateTime>() {
+            @Override
+            public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+                gen.writeString(value.toString()); // yyyy-MM-ddTHH:mm:ss
+            }
+        });
+
+        // Updated deserializer for LocalDateTime to handle blank strings gracefully
+        customDatesModule.addDeserializer(LocalDateTime.class, new JsonDeserializer<LocalDateTime>() {
+            @Override
+            public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+                String dateTimeStr = p.getValueAsString();
+                if (dateTimeStr == null || dateTimeStr.trim().isEmpty()) {
+                    return null; // treat blank or empty string as null
+                }
+                return LocalDateTime.parse(dateTimeStr.trim());
+            }
+        });
+
+        mapper.registerModule(customDatesModule);
+        return mapper;
     }
 }
