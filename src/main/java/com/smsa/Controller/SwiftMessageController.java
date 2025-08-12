@@ -123,7 +123,7 @@ public class SwiftMessageController {
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
             EncryptedResponseData responseData = new EncryptedResponseData();
-            responseData.setAccessToken(null);
+            responseData.setAccessToken(accessToken);
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
