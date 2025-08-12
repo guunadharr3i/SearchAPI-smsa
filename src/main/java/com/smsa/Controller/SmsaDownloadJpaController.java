@@ -94,11 +94,11 @@ public class SmsaDownloadJpaController {
             ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             // Step 3: Authentication
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+//            if (accessToken == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
+//            }
             switch (downloadType.toUpperCase()) {
 //                case "XLSX":
 //                    return exportSwiftHeadersToExcel(filter.getFilter());
