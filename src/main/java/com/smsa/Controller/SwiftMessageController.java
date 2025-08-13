@@ -155,6 +155,11 @@ public class SwiftMessageController {
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
+            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
+            if (accessToken == null) {
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
 
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());
