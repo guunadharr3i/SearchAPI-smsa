@@ -125,7 +125,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 String fieldName = pd.getName();
                 Object value;
 
-                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName) && !"generalsearch".equals(fieldName)) {
+                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName)) {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
                         if (value instanceof List) {
@@ -161,6 +161,19 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     }
 
     private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+        if (fieldName.equals("fromTime") && value instanceof String) {
+            return cb.greaterThanOrEqualTo(root.get("time"), (String)value);
+        }
+        if (fieldName.equals("toTime") && value instanceof String) {
+            return cb.lessThanOrEqualTo(root.get("time"), (String)value);
+        }
+         if (fieldName.equals("fromAmount") && value instanceof String) {
+            return cb.greaterThanOrEqualTo(root.get("transactionAmount"), (String)value);
+        }
+        if (fieldName.equals("toTime") && value instanceof String) {
+            return cb.lessThanOrEqualTo(root.get("transactionAmount"), (String)value);
+        }
+        
         if (fieldName.endsWith("From") && value instanceof Comparable) {
             return cb.greaterThanOrEqualTo(root.get("fileDate"), (Comparable) value);
         }

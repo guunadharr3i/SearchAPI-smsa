@@ -1,7 +1,6 @@
 package com.smsa.DTO;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,8 +8,10 @@ public class SwiftMessageHeaderFilterPojo {
 
     private List<Long> messageId;
     private List<String> fileName;
-    private List<LocalDateTime> date;
-    private List<String> time;
+    private String fromTime;
+    private String toTime;
+    private String fromAmount;
+    private String toAmount;
     private List<Integer> mtCode;
     private List<Integer> page;
     private List<String> fileType;
@@ -30,7 +31,6 @@ public class SwiftMessageHeaderFilterPojo {
     private List<LocalDate> fileDate;
     private List<String> mur;
     private String uetr;
-    private List<String> transactionAmount;
     private List<String> transactionResult;
     private List<String> primaryFormat;
     private List<String> secondaryFormat;
@@ -39,7 +39,7 @@ public class SwiftMessageHeaderFilterPojo {
     private LocalDate dateTo;
     private List<String> columnSort = new ArrayList<>();
     private String sortType = "DESC";
-    private String generalsearch;
+    private String rawMessageData;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -58,21 +58,6 @@ public class SwiftMessageHeaderFilterPojo {
         this.fileName = fileName;
     }
 
-    public List<LocalDateTime> getDate() {
-        return date;
-    }
-
-    public void setDate(List<LocalDateTime> date) {
-        this.date = date;
-    }
-
-    public List<String> getTime() {
-        return time;
-    }
-
-    public void setTime(List<String> time) {
-        this.time = time;
-    }
 
     public List<Integer> getMtCode() {
         return mtCode;
@@ -226,13 +211,6 @@ public class SwiftMessageHeaderFilterPojo {
         this.uetr = uetr;
     }
 
-    public List<String> getTransactionAmount() {
-        return transactionAmount;
-    }
-
-    public void setTransactionAmount(List<String> transactionAmount) {
-        this.transactionAmount = transactionAmount;
-    }
 
     public List<String> getTransactionResult() {
         return transactionResult;
@@ -311,17 +289,73 @@ public class SwiftMessageHeaderFilterPojo {
     }
 
     /**
-     * @return the generalsearch
+     * @return the rawMessageData
      */
-    public String getGeneralsearch() {
-        return generalsearch;
+    public String getRawMessageData() {
+        return rawMessageData;
     }
 
     /**
-     * @param generalsearch the generalsearch to set
+     * @param rawMessageData the rawMessageData to set
      */
-    public void setGeneralsearch(String generalsearch) {
-        this.generalsearch = generalsearch;
+    public void setRawMessageData(String rawMessageData) {
+        this.rawMessageData = rawMessageData;
+    }
+
+    /**
+     * @return the fromTime
+     */
+    public String getFromTime() {
+        return fromTime;
+    }
+
+    /**
+     * @param fromTime the fromTime to set
+     */
+    public void setFromTime(String fromTime) {
+        this.fromTime = fromTime;
+    }
+
+    /**
+     * @return the toTime
+     */
+    public String getToTime() {
+        return toTime;
+    }
+
+    /**
+     * @param toTime the toTime to set
+     */
+    public void setToTime(String toTime) {
+        this.toTime = toTime;
+    }
+
+    /**
+     * @return the fromAmount
+     */
+    public String getFromAmount() {
+        return fromAmount;
+    }
+
+    /**
+     * @param fromAmount the fromAmount to set
+     */
+    public void setFromAmount(String fromAmount) {
+        this.fromAmount = fromAmount;
+    }
+
+    /**
+     * @return the toAmount
+     */
+    public String getToAmount() {
+        return toAmount;
+    }
+
+    /**
+     * @param toAmount the toAmount to set
+     */
+    public void setToAmount(String toAmount) {
+        this.toAmount = toAmount;
     }
 
 }
