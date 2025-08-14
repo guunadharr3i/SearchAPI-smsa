@@ -112,18 +112,18 @@ public class SwiftMessageController {
             ObjectMapper mapper = getCustomMapper();
 
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+//            if (accessToken == null) {
+//                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+//            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
 
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
             EncryptedResponseData responseData = new EncryptedResponseData();
-            responseData.setAccessToken(accessToken);
+            responseData.setAccessToken(null);
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
@@ -155,11 +155,11 @@ public class SwiftMessageController {
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
-            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
-            if (accessToken == null) {
-                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
+//            if (accessToken == null) {
+//                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+//            }
 
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());

@@ -143,10 +143,10 @@ public class SmsaDownloadJpaController {
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
 
             // Authentication (commented out)
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-            if (accessToken == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-            }
+//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+//            if (accessToken == null) {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+//            }
 
             switch (downloadType.toUpperCase()) {
                 case "XLSX":
