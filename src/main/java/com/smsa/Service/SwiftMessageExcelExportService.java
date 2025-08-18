@@ -11,12 +11,12 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
+import org.apache.logging.log4j.Logger;
 
 @Service
 public class SwiftMessageExcelExportService {
 
-    private static final org.apache.logging.log4j.Logger log
-            = LogManager.getLogger(SwiftMessageExcelExportService.class);
+    private static final Logger log = LogManager.getLogger(SwiftMessageExcelExportService.class);
 
     @Autowired
     private SwiftMessageService swiftMessageService;
@@ -33,8 +33,7 @@ public class SwiftMessageExcelExportService {
         }
 
         // --- HSSFWorkbook instead of XSSFWorkbook ---
-        try (Workbook workbook = new HSSFWorkbook(); 
-                 ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (Workbook workbook = new HSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Swift Headers");
             createHeaderRow(sheet);

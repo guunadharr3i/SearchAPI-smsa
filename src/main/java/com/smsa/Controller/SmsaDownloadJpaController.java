@@ -25,12 +25,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.smsa.DTO.FilterRequest;
@@ -50,6 +48,8 @@ import com.smsa.encryption.AESUtil;
 import com.smsa.tokenValidation.AuthenticateAPi;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.zip.ZipOutputStream;
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping
@@ -127,9 +127,10 @@ public class SmsaDownloadJpaController {
     }
 
     @PostMapping("/download/XLSX")
-    public ResponseEntity<StreamingResponseBody> getFilteredMessagesXL(
+    public void downloadExcelZip(
             @RequestBody EncryptedtPayloadRequest encryptedRequest,
-            @RequestParam String downloadType) {
+            @RequestParam String downloadType,
+            HttpServletResponse response) {
 
         logger.info("Inside GetFiltered messages method");
         logger.info("Selected downloadType: {}", downloadType);
@@ -139,30 +140,30 @@ public class SmsaDownloadJpaController {
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
             logger.info("DecryptedJson: {}", decryptedJson);
 
-            ObjectMapper mapper =getCustomMapper();
+            ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
 
-            // Authentication (commented out)
-//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-//            if (accessToken == null) {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-//            }
-
-            switch (downloadType.toUpperCase()) {
-                case "XLSX":
-                    return exportSwiftHeadersToExcels(filter.getFilter());
-                // Add other cases that return StreamingResponseBody
-                default:
-                    // Return error as StreamingResponseBody or change method signature
-                    return createErrorResponse("Invalid download type: " + downloadType);
+            if (!"XLSX".equalsIgnoreCase(downloadType)) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid download type");
+                return;
             }
 
-        } catch (JsonProcessingException e) {
-            logger.error("JSON processing error while processing download request", e);
-            return createErrorResponse("Invalid request format");
+            // Response headers
+            response.setContentType("application/zip");
+            response.setHeader("Content-Disposition", "attachment; filename=swift_xls_export.zip");
+
+            try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
+                exportService.streamSwiftHeadersToZip(zos, filter.getFilter());
+                zos.finish();
+            }
+
         } catch (Exception e) {
-            logger.error("Exception while processing download request", e);
-            return createErrorResponse("Internal server error");
+            logger.error("Error while processing Excel export", e);
+            try {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Export failed");
+            } catch (IOException io) {
+                logger.error("Failed to send error response", io);
+            }
         }
     }
 
@@ -177,53 +178,7 @@ public class SmsaDownloadJpaController {
         return ResponseEntity.badRequest().body(errorBody);
     }
 
-    public ResponseEntity<?> exportSwiftHeadersToExcel(SwiftMessageHeaderFilterPojo filters) {
-        logger.info("Exporting data to Excel zip");
-        try {
-            String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
-            String filePath = exportService.exportSwiftHeadersToZip(path, filters);
-            logger.info("after getting out from service with file path: " + filePath);
-            File zipFile = new File(filePath);
 
-            if (!zipFile.exists()) {
-                logger.warn("Excel export zip file not found at {}", filePath);
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(DownloadApiResponse.error(ApiResponseCode.FILE_NOT_FOUND));
-            }
-
-            return getFileDownloadResponse(zipFile, "swift_xls_export.zip");
-        } catch (IOException e) {
-            logger.error("Failed to export Excel zip", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
-        } catch (Exception e) {
-            logger.error("Failed to export Excel zip", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
-        }
-    }
-
-    public ResponseEntity<StreamingResponseBody> exportSwiftHeadersToExcels(SwiftMessageHeaderFilterPojo filters) {
-        logger.info("Exporting data to Excel zip");
-        try {
-            String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
-            String filePath = exportService.exportSwiftHeadersToZip(path, filters);
-            logger.info("after getting out from service with file path: " + filePath);
-            File zipFile = new File(filePath);
-
-            if (!zipFile.exists()) {
-                logger.warn("Excel export zip file not found at {}", filePath);
-                return createErrorResponse("");
-            }
-
-            return getFileDownloadResponse1(zipFile, "swift_xls_export.zip");
-        } catch (Exception e) {
-            logger.error("Failed to export Excel zip", e);
-            // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            //         .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
-            return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.name());
-        }
-    }
 
     public ResponseEntity<?> exportTxtZip(SwiftMessageHeaderFilterPojo filters) {
         logger.info("Exporting TXT zip");
@@ -463,6 +418,7 @@ public class SmsaDownloadJpaController {
                     .body(DownloadApiResponse.error(ApiResponseCode.INTERNAL_ERROR));
         }
     }
+
     private ObjectMapper getCustomMapper() {
         ObjectMapper mapper = new ObjectMapper();
 

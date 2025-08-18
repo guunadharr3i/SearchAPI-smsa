@@ -12,15 +12,13 @@ import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.logging.log4j.LogManager;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -32,80 +30,50 @@ public class SwiftMessageExportService {
     @Autowired
     private SwiftMessageService swiftMessageService;
 
-    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderFilterPojo filters) {
-        try {
-            log.info("Starting SwiftMessageHeader export...");
+    /**
+     * Stream Excel files directly into a ZIP output stream
+     */
+    public void streamSwiftHeadersToZip(ZipOutputStream zos, SwiftMessageHeaderFilterPojo filters) throws IOException {
+        log.info("Streaming SwiftMessageHeader export directly to ZIP...");
 
-            List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
-            if (headers == null || headers.isEmpty()) {
-                log.warn("No SwiftMessageHeader records found. Aborting export.");
-                return null;
-            }
-
-            int estimatedRowSize = estimateRowSize(headers.get(0)) + 500;
-            int sizeBasedRowLimit = Math.max(1, (int) ((1024 * 1024 * 0.9) / estimatedRowSize));
-            int rowsPerFile = Math.min(65530, sizeBasedRowLimit); // .xls max rows
-
-            log.info("Total records: {}, Estimated row size: {}, Rows/file: {}", headers.size(), estimatedRowSize, rowsPerFile);
-
-            File tempDir = new File(folderPath, "temp_xls_" + System.currentTimeMillis());
-            tempDir.mkdirs();
-            log.info("Temp directory: {}", tempDir.getAbsolutePath());
-
-            writeChunksToXlsxFiles(headers, tempDir, rowsPerFile);
-            log.info("after write chunk files method call");
-
-            String zipPath = folderPath + "/swift_headers_export.zip";
-            zipFiles(tempDir, zipPath);
-//            cleanTempDirectory(tempDir);
-
-            log.info("Export complete: {}", zipPath);
-            return zipPath;
-
-        } catch (Exception e) {
-            log.error("Error during exportSwiftHeadersToZip: ", e);
-            return null;
+        List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
+        if (headers == null || headers.isEmpty()) {
+            log.warn("No SwiftMessageHeader records found. Skipping export.");
+            return;
         }
-    }
 
-    private void writeChunksToXlsxFiles(List<SwiftMessageHeaderPojo> headers, File tempDir, int rowsPerFile) throws IOException {
+        int rowsPerFile = 1_000_000; // XLSX row limit
         int fileCount = 1;
-        try {
-            for (int i = 0; i < headers.size(); i += rowsPerFile) {
-                List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
 
-                Workbook workbook = createHssfWorkbookWithHeaders(); // Updated helper
-                Sheet sheet = workbook.getSheetAt(0);
-                log.info("File count: " + fileCount + " Chunck size: " + chunk.size());
+        for (int i = 0; i < headers.size(); i += rowsPerFile) {
+            List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
+            String fileName = "swift_headers_" + (fileCount++) + ".xlsx";
+
+            zos.putNextEntry(new ZipEntry(fileName));
+
+            try (SXSSFWorkbook workbook = new SXSSFWorkbook(100)) { // keep 100 rows in memory
+                Sheet sheet = workbook.createSheet("SwiftHeaders");
+                createHeaderRow(sheet);
+
                 int rowNum = 1;
                 for (SwiftMessageHeaderPojo header : chunk) {
                     Row row = sheet.createRow(rowNum++);
-                    populateSheetRow(row, header); // This should work as-is if generic
+                    populateSheetRow(row, header);
                 }
-                log.info("after populating file count: " + fileCount);
 
-                for (int col = 0; col < 34; col++) {
-                    sheet.autoSizeColumn(col);
-                }
-                log.info("before creating file of filecount: " + fileCount);
-                File file = new File(tempDir, "swift_headers_" + fileCount++ + ".xls"); // .xls instead of .xlsx
-                try (FileOutputStream fos = new FileOutputStream(file)) {
-                    workbook.write(fos);
-                    log.info("Created XLS: {} with {} rows", file.getName(), chunk.size());
-                } finally {
-                    workbook.close();
-                }
+                workbook.write(zos); // write directly to ZIP
+                workbook.dispose();  // clean temp files
             }
-        } catch (Exception e) {
-            log.info("Exception araised: " + e);
+
+            zos.closeEntry();
+            log.info("Added {} rows into {}", chunk.size(), fileName);
         }
-        log.info("End of method write chunk files with file count: " + fileCount);
     }
 
-    private Workbook createHssfWorkbookWithHeaders() {
-        Workbook workbook = new HSSFWorkbook(); // XLS workbook
-        Sheet sheet = workbook.createSheet("SwiftHeaders");
-
+    /**
+     * Create header row
+     */
+    private void createHeaderRow(Sheet sheet) {
         Row headerRow = sheet.createRow(0);
         headerRow.createCell(0).setCellValue("Message Id");
         headerRow.createCell(1).setCellValue("Identifier");
@@ -134,11 +102,11 @@ public class SwiftMessageExportService {
         headerRow.createCell(24).setCellValue("Transaction Result");
         headerRow.createCell(25).setCellValue("Primary FMT");
         headerRow.createCell(26).setCellValue("Secondary FMT");
-
-        // Add up to 34 headers
-        return workbook;
     }
 
+    /**
+     * Populate a row with SwiftMessageHeaderPojo data
+     */
     private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
         row.createCell(0).setCellValue(safeLong(h.getMessageId()));
         row.createCell(1).setCellValue(safe(h.getInpOut()));
@@ -167,81 +135,6 @@ public class SwiftMessageExportService {
         row.createCell(24).setCellValue(safe(h.getTransactionResult()));
         row.createCell(25).setCellValue(safe(h.getPrimaryFormat()));
         row.createCell(26).setCellValue(safe(h.getSecondaryFormat()));
-    }
-
-    private void zipFiles(File directory, String zipPath) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(zipPath); ZipOutputStream zos = new ZipOutputStream(fos)) {
-            File[] files = directory.listFiles((dir, name) -> name.endsWith(".xls"));
-            if (files != null) {
-                for (File file : files) {
-                    try (FileInputStream fis = new FileInputStream(file)) {
-                        zos.putNextEntry(new ZipEntry(file.getName()));
-                        byte[] buffer = new byte[1024];
-                        int len;
-                        while ((len = fis.read(buffer)) > 0) {
-                            zos.write(buffer, 0, len);
-                        }
-                        zos.closeEntry();
-                        log.info("Added {} to ZIP", file.getName());
-                    }
-                }
-            }
-        } catch (Exception e) {
-        }
-    }
-
-    private void cleanTempDirectory(File tempDir) {
-        File[] files = tempDir.listFiles();
-        if (files != null) {
-            for (File f : files) {
-                try {
-                    Files.delete(f.toPath());
-                } catch (IOException e) {
-                    log.warn("Failed to delete file: {}", f.getAbsolutePath(), e);
-                }
-            }
-        }
-        try {
-            Files.delete(tempDir.toPath());
-        } catch (IOException e) {
-            log.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath(), e);
-        }
-    }
-
-//    private Workbook createWorkbookWithHeaders() {
-//        Workbook workbook = new XSSFWorkbook();
-//        Sheet sheet = workbook.createSheet("Swift Headers");
-//
-//        String[] headers = {
-//                "Message Id", "Identifier", "Sender", "Receiver", "MT Code",
-//                "Date",
-//                "Time", "File Type", "Currency", "Amount", "uetr", "Input Ref No", "Output Ref No",
-//                "File Name", "Message Desc", "Message Type", "SLA ID", "Priority",
-//                "Sender BIC Desc",
-//                "Receiver BIC Desc", "User Ref", "Transaction Ref", "File Date",
-//                "MUR", "Transaction Result", "Primary FMT", "Secondary FMT"
-//        };
-//
-//        Row headerRow = sheet.createRow(0);
-//        for (int i = 0; i < headers.length; i++) {
-//            headerRow.createCell(i).setCellValue(headers[i]);
-//        }
-//        return workbook;
-//    }
-    private int estimateRowSize(SwiftMessageHeaderPojo h) {
-        String raw = safeLong(h.getMessageId()) + safe(h.getInpOut()) + safe(h.getSenderBic()) + safe(h.getReceiverBic())
-                + safeInt(h.getMtCode())
-                + safe(h.getDate())
-                + safe(h.getTime()) + safe(h.getFileType()) + safe(h.getCurrency())
-                + safe(h.getTransactionAmount()) + safe(h.getUetr()) + safe(h.getInputRefNo()) + safe(h.getOutputRefNo())
-                + safe(h.getFileName())
-                + safe(h.getMsgDesc()) + safe(h.getMsgType())
-                + safe(h.getSlaId()) + safe(h.getPriority()) + safe(h.getSenderBicDesc())
-                + safe(h.getReceiverBicDesc())
-                + safe(h.getUserRef()) + safe(h.getTransactionRef()) + safe(h.getFileDate()) + safe(h.getMur())
-                + safe(h.getTransactionResult())
-                + safe(h.getPrimaryFormat()) + safe(h.getSecondaryFormat());
-        return raw.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private String safe(Object obj) {
