@@ -17,7 +17,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>smsa-search-api</name>
     <description>project for Spring Boot</description>
-    <packaging>jar</packaging>
+    <packaging>war</packaging>
 
     <properties>
         <java.version>1.8</java.version>
@@ -36,12 +36,12 @@
                 </exclusion>
             </exclusions>
         </dependency>
-        <dependency>
+        <!--        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
+        </dependency>-->
         <!--Web + Provided Tomcat--> 
-        <!--                <dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
             <exclusions>
@@ -50,13 +50,13 @@
                     <artifactId>spring-boot-starter-tomcat</artifactId>
                 </exclusion>
             </exclusions>
-        </dependency>-->
+        </dependency>
 
-        <!--        <dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-tomcat</artifactId>
             <scope>provided</scope>
-        </dependency>-->
+        </dependency>
 
         <!-- Spring Data JPA -->
         <dependency>
