@@ -14,6 +14,7 @@ import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.InvocationTargetException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.EntityManager;
@@ -144,9 +145,19 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                                 }
                             }
                         } else {
-                            Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
-                            if (predicate != null) {
-                                predicates.add(predicate);
+                            if (value instanceof String) {
+                                String val = (String) value;
+                                if (!val.trim().isEmpty()) {
+                                    Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                                    if (predicate != null) {
+                                        predicates.add(predicate);
+                                    }
+                                }
+                            } else {
+                                Predicate predicate = buildPredicateForField(fieldName, value, cb, root);
+                                if (predicate != null) {
+                                    predicates.add(predicate);
+                                }
                             }
                         }
 
@@ -162,18 +173,18 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         if (fieldName.equals("fromTime") && value instanceof String) {
-            return cb.greaterThanOrEqualTo(root.get("time"), (String)value);
+            return cb.greaterThanOrEqualTo(root.get("time"), (String) value);
         }
         if (fieldName.equals("toTime") && value instanceof String) {
-            return cb.lessThanOrEqualTo(root.get("time"), (String)value);
+            return cb.lessThanOrEqualTo(root.get("time"), (String) value);
         }
-         if (fieldName.equals("fromAmount") && value instanceof String) {
-            return cb.greaterThanOrEqualTo(root.get("transactionAmount"), (String)value);
+        if (fieldName.equals("fromAmount") && value instanceof String) {
+            return cb.greaterThanOrEqualTo(root.get("transactionAmount"), new BigDecimal((String) value));
         }
-        if (fieldName.equals("toTime") && value instanceof String) {
-            return cb.lessThanOrEqualTo(root.get("transactionAmount"), (String)value);
+        if (fieldName.equals("toAmount") && value instanceof String) {
+            return cb.lessThanOrEqualTo(root.get("transactionAmount"), new BigDecimal((String) value));
         }
-        
+
         if (fieldName.endsWith("From") && value instanceof Comparable) {
             return cb.greaterThanOrEqualTo(root.get("fileDate"), (Comparable) value);
         }
