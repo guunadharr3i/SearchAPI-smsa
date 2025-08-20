@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,18 +113,21 @@ public class SwiftMessageController {
             ObjectMapper mapper = getCustomMapper();
 
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
-//            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-//            if (accessToken == null) {
-//                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-//            }
+            logger.info("before authentication call time: "+new Date());
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            logger.info("after call token out time: "+new Date());
+            logger.info("after authentication call "+accessToken);
+            if (accessToken == null) {
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
 
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
             EncryptedResponseData responseData = new EncryptedResponseData();
-            responseData.setAccessToken(null);
+            responseData.setAccessToken(accessToken);
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
@@ -155,11 +159,12 @@ public class SwiftMessageController {
             Map<String, String> tokenMap = new HashMap<>();
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
-//            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
-//            if (accessToken == null) {
-//                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-//            }
+            
+            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
+            if (accessToken == null) {
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
 
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());
@@ -167,7 +172,7 @@ public class SwiftMessageController {
             ObjectMapper mapper = getCustomMapper();
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("messageTypes", data);
-            responseData.put("accessToken", null);
+            responseData.put("accessToken", accessToken);
 
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);

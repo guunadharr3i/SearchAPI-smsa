@@ -5,6 +5,7 @@
 package com.smsa.tokenValidation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Date;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -34,15 +35,17 @@ public class AuthenticateAPi {
     @Autowired
     private ObjectMapper objectMapper; // Add this if not autowired already
 
-    public  String validateAndRefreshToken(Map<String, String> tokenRequest) {
+    public String validateAndRefreshToken(Map<String, String> tokenRequest) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(tokenRequest, headers);
-            logger.debug("Calling authentication service at URL: {}", authenticationUrl);
+            logger.info("Calling authentication service at URL: {}", authenticationUrl + " time: " + new Date());
 
             ResponseEntity<String> tokenResponse = restTemplate.postForEntity(authenticationUrl, requestEntity, String.class);
+            logger.info("time after call :" + new Date());
+            logger.info("after microservice call status code " + tokenResponse.getStatusCodeValue());
 
             if (tokenResponse.getStatusCode().is2xxSuccessful()) {
                 logger.info("Token refresh successful, status: {}", tokenResponse.getStatusCodeValue());
@@ -50,18 +53,18 @@ public class AuthenticateAPi {
                 String tokenJson = tokenResponse.getBody();
                 return objectMapper.readTree(tokenJson).get("accessToken").asText();
             } else {
-                logger.warn("Token refresh failed, status code: {}", tokenResponse.getStatusCodeValue());
+                logger.info("Token refresh failed, status code: {}", tokenResponse.getStatusCodeValue());
                 return null;
             }
 
         } catch (HttpClientErrorException ex) {
-            logger.error("HTTP client error during token refresh: {}, response: {}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
+            logger.info("HTTP client error during token refresh: {}, response: {}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
             return null;
         } catch (RestClientException ex) {
-            logger.error("RestClientException during token refresh: {}", ex.getMessage(), ex);
+            logger.info("RestClientException during token refresh: {}", ex.getMessage(), ex);
             return null;
         } catch (Exception ex) {
-            logger.error("Unexpected error during token refresh: {}", ex.getMessage(), ex);
+            logger.info("Unexpected error during token refresh: {}", ex.getMessage(), ex);
             return null;
         }
     }
