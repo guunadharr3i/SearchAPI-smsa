@@ -48,6 +48,7 @@ import com.smsa.encryption.AESUtil;
 import com.smsa.tokenValidation.AuthenticateAPi;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.zip.ZipOutputStream;
 import javax.servlet.http.HttpServletResponse;
 
@@ -94,7 +95,9 @@ public class SmsaDownloadJpaController {
             ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             // Step 3: Authentication
-            String accessToken = authenticateApi.validateAndRefreshAccessToken(filter.getTokenRequest());
+            logger.info(" time before autheticate api: "+ new Date());
+            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            logger.info("after method call time: "+new Date()+ " token value is : "+accessToken);
             if (accessToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
