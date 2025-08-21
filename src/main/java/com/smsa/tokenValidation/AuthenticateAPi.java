@@ -4,6 +4,10 @@
  */
 package com.smsa.tokenValidation;
 
+/*
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
+ */
 import com.smsa.DTO.RoleMenuDTO;
 import com.smsa.encryption.AESUtil;
 import com.smsa.entity.UserLogonHstDtl;
@@ -11,10 +15,11 @@ import com.smsa.entity.UserRoleGeoMappingMST;
 import com.smsa.repository.RoleMenuMstRepository;
 import com.smsa.repository.UserLogonHstRepository;
 import com.smsa.repository.UserRoleGeoMappingMSTRepository;
-import io.jsonwebtoken.SignatureAlgorithm;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
@@ -38,7 +43,6 @@ import org.springframework.stereotype.Service;
 @Transactional
 public class AuthenticateAPi {
 
-
     @Value("${aes.auth.key}")
     private String secretKey;
 
@@ -50,10 +54,10 @@ public class AuthenticateAPi {
 
     @Autowired
     public static UserRoleGeoMappingMSTRepository userRoleGeoMappingMSTRepository;
-    
+
     @Autowired
     public static RoleMenuMstRepository roleMenuMstRepository;
-    
+
     @Autowired
     public static UserLogonHstRepository userLogonHstRepository;
 
@@ -69,11 +73,18 @@ public class AuthenticateAPi {
                 logger.warn("No token provided for refresh");
                 return "Token is required";
             }
+            logger.info("after decrypting token: " + oldToken);
+            String newAccessToken = validateToken(oldToken);
+            logger.info("new Token: " + newAccessToken);
+            verifyValidateUserDevice(oldToken, newAccessToken, AESUtil.decrypt(tokenRequest.get("DeviceHash"), secretKey, viKey));
+            Map<String, String> response = new HashMap<>();
+            String accessToken = AESUtil.encrypt(newAccessToken, secretKey, viKey);
+            logger.info("Token refreshed successfully");
+            return accessToken;
         } catch (Exception e) {
-            logger.error("exception : "+e.getMessage());
+            logger.error("exception : " + e.getMessage());
             return null;
         }
-        return null;
     }
 
     private static Key getSigningKey() {
@@ -136,7 +147,8 @@ public class AuthenticateAPi {
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
-  public void verifyValidateUserDevice(String token, String newAccessToken, String deviceHash) {
+
+    public void verifyValidateUserDevice(String token, String newAccessToken, String deviceHash) {
 
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
