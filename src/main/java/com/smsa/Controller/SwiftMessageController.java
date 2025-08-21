@@ -114,7 +114,7 @@ public class SwiftMessageController {
 
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             logger.info("before authentication call time: "+new Date());
-            String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            String accessToken = authenticateApi.validateAndRefreshAccessToken(filter.getTokenRequest());
             logger.info("after call token out time: "+new Date());
             logger.info("after authentication call "+accessToken);
             if (accessToken == null) {
@@ -160,7 +160,7 @@ public class SwiftMessageController {
             tokenMap.put("token", token);
             tokenMap.put("DeviceHash", deviceHash);
             
-            String accessToken = authenticateApi.validateAndRefreshToken(tokenMap);
+            String accessToken = authenticateApi.validateAndRefreshAccessToken(tokenMap);
             if (accessToken == null) {
                 ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
