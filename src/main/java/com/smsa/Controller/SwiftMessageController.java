@@ -287,41 +287,4 @@ public class SwiftMessageController {
         return refreshCall;
     }
 
-    @PostMapping("/getSenderBicData")
-    public ResponseEntity<?> getSenderBicData() {
-        try {
-            logger.info("Received request for getSenderBicData");
-            Object senderBicData = service.getSenderBicData();
-
-            if (senderBicData == null || ((List<?>) senderBicData).isEmpty()) {
-                logger.info("No sender BIC data found.");
-                return ResponseEntity.noContent().build();
-            }
-
-            logger.info("Sender BIC data fetched successfully.");
-            return ResponseEntity.ok(senderBicData);
-        } catch (Exception e) {
-            logger.error("Exception in getSenderBicData(): ", e);
-            return ResponseEntity.badRequest().body("Error fetching sender BIC data.");
-        }
-    }
-
-    @PostMapping("/getReciverBicData")
-    public ResponseEntity<?> getReciverBicData() {
-        try {
-            logger.info("Received request for getReciverBicData");
-            Object receiverBicData = service.getReceiverrBicData();
-
-            if (receiverBicData == null || ((List<?>) receiverBicData).isEmpty()) {
-                logger.info("No receiver BIC data found.");
-                return ResponseEntity.noContent().build();
-            }
-
-            logger.info("Receiver BIC data fetched successfully.");
-            return ResponseEntity.ok(receiverBicData);
-        } catch (Exception e) {
-            logger.error("Exception in getReciverBicData(): ", e);
-            return ResponseEntity.badRequest().body("Error fetching receiver BIC data.");
-        }
-    }
 }

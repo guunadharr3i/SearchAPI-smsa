@@ -8,7 +8,6 @@
  */
 package com.smsa.Service;
 
-import com.smsa.DTO.SenderBicReponse;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import java.util.List;
@@ -25,10 +24,6 @@ public interface SwiftMessageService {
 
     public List<SwiftMessageHeaderPojo> getTotalData();
 
-    public List<SenderBicReponse> getSenderBicData();
-
-    public List<SenderBicReponse> getReceiverrBicData();
-    
     public List<String> getMessageTypes();
 
 }
