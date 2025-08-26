@@ -11,6 +11,7 @@ package com.smsa.ResponseWrappers;
 import com.smsa.Enums.ErrorCode;
 
 public class ApiResponse<T> {
+
     private int statusCode;
     private String message;
     private T data;
@@ -18,6 +19,12 @@ public class ApiResponse<T> {
     public ApiResponse(ErrorCode errorCode) {
         this.statusCode = errorCode.getCode();
         this.message = errorCode.getDefaultMessage();
+    }
+
+    public ApiResponse(int statusCode, String message, T data) {
+        this.statusCode = statusCode;
+        this.message = message;
+        this.data = data;
     }
 
     public ApiResponse(ErrorCode errorCode, String message) {
@@ -37,10 +44,7 @@ public class ApiResponse<T> {
         this.data = data;
     }
 
-    
-
     // Getters and setters
-
     /**
      * @return the statusCode
      */

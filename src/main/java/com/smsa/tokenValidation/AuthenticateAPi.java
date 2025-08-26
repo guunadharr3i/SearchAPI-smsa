@@ -16,8 +16,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -27,46 +25,58 @@ import org.springframework.web.client.RestTemplate;
 @Service
 public class AuthenticateAPi {
 
+    private static final Logger logger = LogManager.getLogger(AuthenticateAPi.class);
+
     @Value("${authentication.url}")
     private String authenticationUrl;
 
-    private static final Logger logger = LogManager.getLogger(AuthenticateAPi.class);
-    private final RestTemplate restTemplate = new RestTemplate();
     @Autowired
-    private ObjectMapper objectMapper; // Add this if not autowired already
+    private RestTemplate restTemplate;  // ✅ Inject pooled RestTemplate
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public String validateAndRefreshToken(Map<String, String> tokenRequest) {
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        int maxRetries = 5;
 
-            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(tokenRequest, headers);
-            logger.info("Calling authentication service at URL: {}", authenticationUrl + " time: " + new Date());
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(tokenRequest, headers);
 
-            ResponseEntity<String> tokenResponse = restTemplate.postForEntity(authenticationUrl, requestEntity, String.class);
-            logger.info("time after call :" + new Date());
-            logger.info("after microservice call status code " + tokenResponse.getStatusCodeValue());
+                logger.info("Attempt {} - Calling authentication service at {}", attempt, new Date());
+                ResponseEntity<String> tokenResponse =
+                        restTemplate.postForEntity(authenticationUrl, requestEntity, String.class);
 
-            if (tokenResponse.getStatusCode().is2xxSuccessful()) {
-                logger.info("Token refresh successful, status: {}", tokenResponse.getStatusCodeValue());
+                logger.info("Response received, status: {}", tokenResponse.getStatusCodeValue());
 
-                String tokenJson = tokenResponse.getBody();
-                return objectMapper.readTree(tokenJson).get("accessToken").asText();
-            } else {
-                logger.info("Token refresh failed, status code: {}", tokenResponse.getStatusCodeValue());
-                return null;
+                if (tokenResponse.getStatusCode().is2xxSuccessful()) {
+                    String tokenJson = tokenResponse.getBody();
+                    String accessToken = objectMapper.readTree(tokenJson).get("accessToken").asText();
+                    return tokenResponse.getStatusCodeValue() + ":" + accessToken;
+                } else {
+                    logger.warn("Non-2xx response on attempt {}: {}", attempt, tokenResponse.getStatusCodeValue());
+                    return tokenResponse.getStatusCodeValue() + ":Token refresh failed";
+                }
+
+            } catch (Exception ex) {
+                logger.error("Error during token refresh (attempt {}): {}", attempt, ex.getMessage());
             }
 
-        } catch (HttpClientErrorException ex) {
-            logger.info("HTTP client error during token refresh: {}, response: {}", ex.getStatusCode(), ex.getResponseBodyAsString(), ex);
-            return null;
-        } catch (RestClientException ex) {
-            logger.info("RestClientException during token refresh: {}", ex.getMessage(), ex);
-            return null;
-        } catch (Exception ex) {
-            logger.info("Unexpected error during token refresh: {}", ex.getMessage(), ex);
-            return null;
+            // Retry with exponential backoff
+            if (attempt < maxRetries) {
+                long backoff = attempt * 1000L; // 1s, 2s, 3s...
+                logger.info("Retrying in {} ms (attempt {} of {})", backoff, attempt + 1, maxRetries);
+                try {
+                    Thread.sleep(backoff);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return "500:Retry interrupted";
+                }
+            }
         }
-    }
 
+        return "503:All retry attempts failed for token refresh";
+    }
 }

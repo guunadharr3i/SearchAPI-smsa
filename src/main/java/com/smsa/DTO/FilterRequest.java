@@ -13,6 +13,7 @@ import java.util.Map;
 public class FilterRequest {
     private Map<String,String> tokenRequest;
     private SwiftMessageHeaderFilterPojo filter;
+    private String userId;
 
     /**
      * @return the tokenRequest
@@ -40,6 +41,20 @@ public class FilterRequest {
      */
     public void setFilter(SwiftMessageHeaderFilterPojo filter) {
         this.filter = filter;
+    }
+
+    /**
+     * @return the userId
+     */
+    public String getUserId() {
+        return userId;
+    }
+
+    /**
+     * @param userId the userId to set
+     */
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     
