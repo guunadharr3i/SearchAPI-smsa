@@ -115,22 +115,22 @@ public class SwiftMessageController {
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             logger.info("before authentication call time: " + new Date());
 //            String decryptedToken=AESUtil.decrypt(filter.getTokenRequest().get("token"), secretKey, viKey);
-//            String result = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
-//            String[] parts = result.split(":", 2);
-//            int statusCode = Integer.parseInt(parts[0]);
-//            String accessToken = parts.length > 1 ? parts[1] : "";
-//            logger.info("after call token out time: " + new Date());
-//            logger.info("after authentication call " + accessToken);
-//            if (accessToken == null) {
-//                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
-//            }
-//            if (statusCode != 200) {
-//                // Success → return token in body
-//                ApiResponse<String> response = new ApiResponse<>(statusCode, accessToken, null);
-//
-//                return ResponseEntity.status(statusCode).body(response);
-//            }
+            String result = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
+            String[] parts = result.split(":", 2);
+            int statusCode = Integer.parseInt(parts[0]);
+            String accessToken = parts.length > 1 ? parts[1] : "";
+            logger.info("after call token out time: " + new Date());
+            logger.info("after authentication call " + accessToken);
+            if (accessToken == null) {
+                ApiResponse<String> response = new ApiResponse<>(ErrorCode.TOKEN_INVALID);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
+            }
+            if (statusCode != 200) {
+                // Success → return token in body
+                ApiResponse<String> response = new ApiResponse<>(statusCode, accessToken, null);
+
+                return ResponseEntity.status(statusCode).body(response);
+            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
 
             Pageable pageable = PageRequest.of(page, size);
@@ -163,25 +163,25 @@ public class SwiftMessageController {
     public ResponseEntity<?> getMessageTypes(@RequestBody AuthRequest request) {
         logger.info("Request received to get messageTypes.");
         try {
-//            String token = request.getToken();
-//            String deviceHash = request.getDeviceHash();
-//
-//            Map<String, String> tokenMap = new HashMap<>();
-//            tokenMap.put("token", token);
-//            tokenMap.put("DeviceHash", deviceHash);
-//
-//            String result = authenticateApi.validateAndRefreshToken(tokenMap);
-//            String[] parts = result.split(":", 2);
-//            int statusCode = Integer.parseInt(parts[0]);
-//            String accessToken = parts.length > 1 ? parts[1] : "";
-//            logger.info("after call token out time: " + new Date());
-//            logger.info("after authentication call " + accessToken);
-//            if (statusCode != 200) {
-//                // Success → return token in body
-//                ApiResponse<String> response = new ApiResponse<>(statusCode, accessToken, null);
-//
-//                return ResponseEntity.status(statusCode).body(response);
-//            }
+            String token = request.getToken();
+            String deviceHash = request.getDeviceHash();
+
+            Map<String, String> tokenMap = new HashMap<>();
+            tokenMap.put("token", token);
+            tokenMap.put("DeviceHash", deviceHash);
+
+            String result = authenticateApi.validateAndRefreshToken(tokenMap);
+            String[] parts = result.split(":", 2);
+            int statusCode = Integer.parseInt(parts[0]);
+            String accessToken = parts.length > 1 ? parts[1] : "";
+            logger.info("after call token out time: " + new Date());
+            logger.info("after authentication call " + accessToken);
+            if (statusCode != 200) {
+                // Success → return token in body
+                ApiResponse<String> response = new ApiResponse<>(statusCode, accessToken, null);
+
+                return ResponseEntity.status(statusCode).body(response);
+            }
 
             List<String> data = service.getMessageTypes();
             logger.info("Successfully fetched {} MessageTypes.", data.size());
