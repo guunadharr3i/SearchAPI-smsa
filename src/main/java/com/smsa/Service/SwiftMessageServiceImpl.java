@@ -243,10 +243,10 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
     private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         if (fieldName.equals("fromTime") && value instanceof String) {
-            return cb.greaterThanOrEqualTo(root.get("time"), (String) value);
+            return cb.greaterThanOrEqualTo(root.get("fileTime"), (String) value);
         }
         if (fieldName.equals("toTime") && value instanceof String) {
-            return cb.lessThanOrEqualTo(root.get("time"), (String) value);
+            return cb.lessThanOrEqualTo(root.get("fileTime"), (String) value);
         }
         if (fieldName.equals("fromAmount") && value instanceof String) {
             return cb.greaterThanOrEqualTo(root.get("transactionAmount"), new BigDecimal((String) value));
