@@ -154,25 +154,30 @@ public class SwiftMessageExportTxtService {
             dateStr = h.getFileDate().format(dateFormatter);
         }
 
-        if (h.getTime() != null && !h.getTime().isEmpty()) {
-            try {
-                LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
-                timeStr = parsedTime.format(outputTimeFormatter);
-            } catch (DateTimeParseException e) {
-                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
-                timeStr = h.getTime();
-            }
-        }
+//        if (h.getTime() != null && !h.getTime().isEmpty()) {
+//            try {
+//                LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
+//                timeStr = parsedTime.format(outputTimeFormatter);
+//            } catch (DateTimeParseException e) {
+//                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
+//                timeStr = h.getTime();
+//            }
+//        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("------------------------------------\n");
-        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("Message Type  :- ").append(safe(h.getMtCode())).append("\n");
+        sb.append("Message Id :- ").append(safe(h.getMessageId())).append("\n");
         sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
         sb.append("Receiver :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Send\\Receive Date :- ").append(dateStr).append("\n");
-        sb.append("Send\\Receive Time :- ").append(timeStr).append("\n");
+        sb.append("Currency :- ").append(safe(h.getCurrency())).append("\n");
+        sb.append("Transaction Amount :- ").append(safe(h.getTransactionAmount())).append("\n");
+        sb.append("Inp Out :- ").append(safe(h.getInpOut())).append("\n");
+        sb.append("UETR :- ").append(safe(h.getUetr())).append("\n");
+        sb.append("File Date :- ").append(dateStr).append("\n");
         sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
+        sb.append("Transaction Ref :- ").append(safe(h.getTransactionRef())).append("\n");
+        sb.append("File Name :- ").append(safe(h.getFileName())).append("\n");
         sb.append("Text :- \n");
 
 //        if (h.getInstanceRaw() != null && !h.getInstanceRaw().trim().isEmpty()) {
@@ -184,8 +189,8 @@ public class SwiftMessageExportTxtService {
 //        }
         sb.append("-----------------Message Text -------------------\n");
 //
-        if (h.getRawTxt()!= null && !h.getRawTxt().trim().isEmpty()) {
-            String cleanedMessageText = extractMessageTextSection(h.getRawTxt());
+        if (h.getRaw_messageText()!= null && !h.getRaw_messageText().trim().isEmpty()) {
+            String cleanedMessageText = extractMessageTextSection(h.getRaw_messageText());
             if (!cleanedMessageText.trim().isEmpty()) {
                 sb.append(cleanedMessageText).append("\n");
             }

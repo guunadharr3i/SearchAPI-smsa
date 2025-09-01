@@ -107,17 +107,21 @@ public class SwiftMessageExportPdfService {
     private String formatRecord(SwiftMessageHeaderPojo h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
-        String timeStr = (h.getTime() != null) ? h.getTime() : "";
 
         StringBuilder sb = new StringBuilder();
         sb.append("------------------------------------\n");
-        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("Message Type  :- ").append(safe(h.getMtCode())).append("\n");
+        sb.append("Message Id :- ").append(safe(h.getMessageId())).append("\n");
         sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
         sb.append("Receiver :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Send\\Receive Date :- ").append(dateStr).append("\n");
-        sb.append("Send\\Receive Time :- ").append(timeStr).append("\n");
+        sb.append("Currency :- ").append(safe(h.getCurrency())).append("\n");
+        sb.append("Transaction Amount :- ").append(safe(h.getTransactionAmount())).append("\n");
+        sb.append("Inp Out :- ").append(safe(h.getInpOut())).append("\n");
+        sb.append("UETR :- ").append(safe(h.getUetr())).append("\n");
+        sb.append("File Date :- ").append(dateStr).append("\n");
         sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
+        sb.append("Transaction Ref :- ").append(safe(h.getTransactionRef())).append("\n");
+        sb.append("File Name :- ").append(safe(h.getFileName())).append("\n");
         sb.append("Text :- \n");
 
 //        if (notBlank(h.()))
@@ -128,8 +132,8 @@ public class SwiftMessageExportPdfService {
 //
         sb.append("-----------------Message Text -------------------\n");
 //
-        if (notBlank(h.getRawTxt())) {
-            String cleaned = extractMessageTextSection(h.getRawTxt());
+        if (notBlank(h.getRaw_messageText())) {
+            String cleaned = extractMessageTextSection(h.getRaw_messageText());
             if (notBlank(cleaned)) {
                 sb.append(cleaned).append("\n");
             }

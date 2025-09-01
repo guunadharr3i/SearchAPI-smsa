@@ -1,42 +1,92 @@
 package com.smsa.entity;
 
 import java.io.Serializable;
-import javax.persistence.*;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.Lob;
+import javax.persistence.MapsId;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
 
+/**
+ * -------------------------- Message Trailer -----------------------
+ */
 @Entity
 @Table(name = "SMSA_MSG_TRL")
 public class SwiftMessageTrailer implements Serializable{
-
+    /**
+     *
+     * id primary key
+     * 
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "swift_msg_trl_gen")
-    @SequenceGenerator(name = "swift_msg_trl_gen", sequenceName = "swift_message_trl", allocationSize = 1)
-    @Column(name = "SMSA_MESSAGE_ID")
+    @Column(name = "SMSA_MESSAGE_ID", nullable = false)
     private Long messageId;
 
+    @OneToOne(fetch = FetchType.LAZY,cascade=CascadeType.ALL)
+    @MapsId
+    @JoinColumn(name = "SMSA_MESSAGE_ID")
+    private SwiftMessageHeader header;
 
-    @Column(name = "SMSA_FILE_NAME")
+    /**
+     *
+     * file name of message
+     * 
+     */
+    @Column(name = "SMSA_FILE_NAME", columnDefinition = "VARCHAR2(100)")
     private String fileName;
 
-    @Column(name = "SMSA_TXN_REF")
+    /**
+     *
+     * Transaction Reference Number from message text
+     * 
+     */
+    @Column(name = "SMSA_TXN_REF", columnDefinition = "VARCHAR2(100)")
     private String txnRef;
 
-    @Column(name = "SMSA_MSG_CHK")
+    /**
+     *
+     * CHK from message trailer
+     * 
+     */
+    @Column(name = "SMSA_MSG_CHK", columnDefinition = "VARCHAR2(100)")
     private String msgChk;
 
-    @Column(name = "SMSA_MSG_SIG")
+    /**
+     *
+     * SIG from message trailer
+     * 
+     */
+    @Column(name = "SMSA_MSG_SIG", columnDefinition = "VARCHAR2(100)")
     private String msgSig;
+    /**
+     *
+     * TNG from message trailer
+     * 
+     */
+    @Column(name = "SMSA_MSG_TNG", columnDefinition = "VARCHAR2(100)")
+    private String msgTNG;
 
-    @Column(name = "SMSA_RMRK")
+    /**
+     *
+     * remark from message instance
+     * 
+     */
+    @Column(name = "SMSA_RMRK", columnDefinition = "VARCHAR2(255)")
     private String remark;
 
-
+    /**
+     *
+     * storing raw message trailer as text
+     * 
+     */
+    @Lob
     @Column(name = "SMSA_TRL_RAW")
     private String trailerRaw;
-
-    // Optional: link to parent if using bidirectional relationship
-    // @ManyToOne
-    // @JoinColumn(name = "SMSA_MESSAGE_ID", insertable = false, updatable = false)
-    // private SmsaPrtMessageHdr messageHdr;
 
     /**
      * @return the messageId
@@ -126,7 +176,7 @@ public class SwiftMessageTrailer implements Serializable{
      * get field @Column(name = "SMSA_TRL_RAW")
      *
      * @return trailerRaw @Column(name = "SMSA_TRL_RAW")
-
+     * 
      */
     public String getTrailerRaw() {
         return this.trailerRaw;
@@ -136,9 +186,59 @@ public class SwiftMessageTrailer implements Serializable{
      * set field @Column(name = "SMSA_TRL_RAW")
      *
      * @param trailerRaw @Column(name = "SMSA_TRL_RAW")
-
+     * 
      */
     public void setTrailerRaw(String trailerRaw) {
         this.trailerRaw = trailerRaw;
+    }
+
+    /**
+     * get field @OneToOne
+     * 
+     * @MapsId
+     * @JoinColumn(name = "SMSA_MESSAGE_ID")
+     *
+     * 
+     * @return header @OneToOne
+     * @MapsId
+     * @JoinColumn(name = "SMSA_MESSAGE_ID")
+     * 
+     */
+    public SwiftMessageHeader getHeader() {
+        return this.header;
+    }
+
+    /**
+     * set field @OneToOne
+     * 
+     * @MapsId
+     * @JoinColumn(name = "SMSA_MESSAGE_ID")
+     *
+     * 
+     * @param header @OneToOne
+     * @MapsId
+     * @JoinColumn(name = "SMSA_MESSAGE_ID")
+     * 
+     */
+    public void setHeader(SwiftMessageHeader header) {
+        this.header = header;
+    }
+
+    /**
+     *
+     * TNG from message trailer
+     *
+     */
+    public String getMsgTNG() {
+        return this.msgTNG;
+    }
+
+    /**
+     *
+     * TNG from message trailer
+     *
+     */
+    public void setMsgTNG(String msgTNG) {
+        this.msgTNG = msgTNG;
     }
 }

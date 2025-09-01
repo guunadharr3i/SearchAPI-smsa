@@ -24,51 +24,41 @@ public class SelectedCsvFileService {
 
         List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
 
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
-             OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); OutputStreamWriter writer = new OutputStreamWriter(out, StandardCharsets.UTF_8)) {
 
             // Write Header Row
             writer.write(String.join(",", new String[]{
-                "Message Id", "Identifier", "Sender", "Receiver", "MT Code",
-                "Date",
-                "Time", "File Type", "Currency", "Amount", "uetr", "Input Ref No", "Output Ref No",
-                "File Name", "Message Desc", "Message Type", "SLA ID", "Priority",
-                "Sender BIC Desc",
-                "Receiver BIC Desc", "User Ref", "Transaction Ref", "File Date",
-                "MUR", "Transaction Result", "Primary FMT", "Secondary FMT"
-            }));
+                "MESSAGE ID",
+                "SENDER BIC",
+                "RECEIVER BIC",
+                "CURRENCY",
+                "TRANSACTION AMOUNT",
+                "INP OUT",
+                "UETR",
+                "FILE DATE",
+                "FILE TYPE",
+                "MESSAGE TYPE",
+                "TRANSACTION REF",
+                "FILE NAME",}));
+
             writer.write("\n");
 
             // Write Data Rows
             for (SwiftMessageHeaderPojo h : headers) {
                 String[] row = new String[]{
                     safe(h.getMessageId()),
-                    safe(h.getInpOut()),
                     safe(h.getSenderBic()),
                     safe(h.getReceiverBic()),
-                    safe(h.getMtCode()),
-                    safe(h.getDate()),
-                    safe(h.getTime()),
-                    safe(h.getFileType()),
                     safe(h.getCurrency()),
                     safe(h.getTransactionAmount()),
+                    safe(h.getInpOut()),
                     safe(h.getUetr()),
-                    safe(h.getInputRefNo()),
-                    safe(h.getOutputRefNo()),
-                    safe(h.getFileName()),
-                    safe(h.getMsgDesc()),
-                    safe(h.getMsgType()),
-                    safe(h.getSlaId()),
-                    safe(h.getPriority()),
-                    safe(h.getSenderBicDesc()),
-                    safe(h.getReceiverBicDesc()),
-                    safe(h.getUserRef()),
-                    safe(h.getTransactionRef()),
                     safe(h.getFileDate()),
-                    safe(h.getMur()),
-                    safe(h.getTransactionResult()),
-                    safe(h.getPrimaryFormat()),
-                    safe(h.getSecondaryFormat())
+                    safe(h.getFileType()),
+                    safe(h.getMsgType()),
+                    safe(h.getTransactionRef()),
+                    safe(h.getFileName())
+
                 };
                 writer.write(String.join(",", escapeCsv(row)));
                 writer.write("\n");

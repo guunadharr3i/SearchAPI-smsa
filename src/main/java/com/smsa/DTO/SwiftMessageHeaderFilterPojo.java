@@ -40,6 +40,7 @@ public class SwiftMessageHeaderFilterPojo {
     private List<String> columnSort = new ArrayList<>();
     private String sortType = "DESC";
     private String rawMessageData;
+    private String transactionRelatedRefNo;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -57,7 +58,6 @@ public class SwiftMessageHeaderFilterPojo {
     public void setFileName(List<String> fileName) {
         this.fileName = fileName;
     }
-
 
     public List<Integer> getMtCode() {
         return mtCode;
@@ -211,7 +211,6 @@ public class SwiftMessageHeaderFilterPojo {
         this.uetr = uetr;
     }
 
-
     public List<String> getTransactionResult() {
         return transactionResult;
     }
@@ -356,6 +355,20 @@ public class SwiftMessageHeaderFilterPojo {
      */
     public void setToAmount(String toAmount) {
         this.toAmount = toAmount;
+    }
+
+    /**
+     * @return the transactionRelatedRefNo
+     */
+    public String getTransactionRelatedRefNo() {
+        return transactionRelatedRefNo;
+    }
+
+    /**
+     * @param transactionRelatedRefNo the transactionRelatedRefNo to set
+     */
+    public void setTransactionRelatedRefNo(String transactionRelatedRefNo) {
+        this.transactionRelatedRefNo = transactionRelatedRefNo;
     }
 
 }

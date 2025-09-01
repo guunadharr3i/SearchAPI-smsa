@@ -143,13 +143,18 @@ public class SwiftMessageCsvExportService {
 
     private void writeCsvHeader(BufferedWriter writer) throws IOException {
         writer.write(String.join(",",
-                "Message Id", "Identifier", "Sender", "Receiver", "MT Code",
-                "Date",
-                "Time", "File Type", "Currency", "Amount", "uetr", "Input Ref No", "Output Ref No",
-                "File Name", "Message Desc", "Message Type", "SLA ID", "Priority",
-                "Sender BIC Desc",
-                "Receiver BIC Desc", "User Ref", "Transaction Ref", "File Date",
-                "MUR", "Transaction Result", "Primary FMT", "Secondary FMT"
+                "MESSAGE ID",
+                "SENDER BIC",
+                "RECEIVER BIC",
+                "CURRENCY",
+                "TRANSACTION AMOUNT",
+                "INP OUT",
+                "UETR",
+                "FILE DATE",
+                "FILE TYPE",
+                "MESSAGE TYPE",
+                "TRANSACTION REF",
+                "FILE NAME"
         ));
 
         writer.newLine();
@@ -157,16 +162,19 @@ public class SwiftMessageCsvExportService {
 
     private void writeCsvRow(BufferedWriter writer, SwiftMessageHeaderPojo h) throws IOException {
         writer.write(String.join(",",
-                csv(h.getMessageId()), csv(h.getInpOut()), csv(h.getSenderBic()), csv(h.getReceiverBic()),
-                csv(h.getMtCode()),
-                csv(h.getDate()),
-                csv(h.getTime()), csv(h.getFileType()), csv(h.getCurrency()), csv(h.getTransactionAmount()),
-                csv(h.getUetr()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
-                csv(h.getFileName()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getPriority()),
-                csv(h.getSenderBicDesc()),
-                csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-                csv(h.getMur()), csv(h.getTransactionResult()), csv(h.getPrimaryFormat()),
-                csv(h.getSecondaryFormat())));
+                csv(h.getMessageId()),
+                csv(h.getSenderBic()),
+                csv(h.getReceiverBic()),
+                csv(h.getCurrency()),
+                csv(h.getTransactionAmount()),
+                csv(h.getInpOut()),
+                csv(h.getUetr()),
+                csv(h.getFileDate()),
+                csv(h.getFileType()),
+                csv(h.getMsgType()),
+                csv(h.getTransactionRef()),
+                csv(h.getFileName())
+        ));
 
         writer.newLine();
     }
@@ -181,15 +189,20 @@ public class SwiftMessageCsvExportService {
 
     private int estimateRowSize(SwiftMessageHeaderPojo h) {
         String raw = String.join("",
-                csv(h.getMessageId()), csv(h.getFileName()), csv(h.getDate()), csv(h.getTime()), csv(h.getMtCode()),
-                csv(h.getPriority()),
-                csv(h.getFileType()), csv(h.getInputRefNo()), csv(h.getOutputRefNo()),
-                csv(h.getInpOut()), csv(h.getMsgDesc()), csv(h.getMsgType()), csv(h.getSlaId()), csv(h.getSenderBic()),
-                csv(h.getSenderBicDesc()), csv(h.getReceiverBic()),
-                csv(h.getReceiverBicDesc()), csv(h.getUserRef()), csv(h.getTransactionRef()), csv(h.getFileDate()),
-                csv(h.getMur()), csv(h.getUetr()), csv(h.getTransactionAmount()), csv(h.getTransactionResult()),
-                csv(h.getPrimaryFormat()),
-                csv(h.getSecondaryFormat()), csv(h.getCurrency()));
+                csv(h.getMessageId()),
+                csv(h.getSenderBic()),
+                csv(h.getReceiverBic()),
+                csv(h.getCurrency()),
+                csv(h.getTransactionAmount()),
+                csv(h.getInpOut()),
+                csv(h.getUetr()),
+                csv(h.getFileDate()),
+                csv(h.getFileType()),
+                csv(h.getMsgType()),
+                csv(h.getTransactionRef()),
+                csv(h.getFileName())
+        );
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
+
 }

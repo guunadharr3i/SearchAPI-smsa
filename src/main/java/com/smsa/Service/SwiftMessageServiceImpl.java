@@ -30,6 +30,7 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @Service
@@ -56,44 +57,119 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     public Page<SwiftMessageHeaderPojo> getFilteredMessages(SwiftMessageHeaderFilterPojo filter, Pageable pageable) {
         logger.info("Executing getFilteredMessages with filter: {}", filter);
 
-        List<SwiftMessageHeader> resultList = new ArrayList<>();
+        List<SwiftMessageHeaderPojo> resultList = new ArrayList<>();
         long totalCount = 0;
 
         try {
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
-            CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
+            // ✅ FIRST QUERY: Get header data without CLOB
+            CriteriaQuery<SwiftMessageHeaderPojo> query = cb.createQuery(SwiftMessageHeaderPojo.class);
             Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
+
             List<Predicate> predicates = buildDynamicPredicates(filter, cb, root);
 
-            query.select(root).distinct(true);
+            // ✅ Select only non-CLOB fields from header table
+            query.select(cb.construct(
+                    SwiftMessageHeaderPojo.class,
+                    root.get("messageId"),
+                    root.get("senderBic"),
+                    root.get("receiverBic"),
+                    root.get("currency"),
+                    root.get("transactionAmount"),
+                    root.get("inpOut"),
+                    root.get("uetr"),
+                    root.get("fileDate"),
+                    root.get("fileType"),
+                    root.get("msgType"),
+                    root.get("transactionRef"),
+                    root.get("fileName"),
+                    root.get("transactionRelatedRefNo"),
+                    cb.nullLiteral(String.class) // Placeholder for messageText
+            )).distinct(true);
+
             if (!predicates.isEmpty()) {
                 query.where(cb.and(predicates.toArray(new Predicate[0])));
             }
-            List<Order> orderOfSorting = new ArrayList<>();
 
+            // ✅ Sorting
+            List<Order> orderOfSorting = new ArrayList<>();
+            if (filter.getColumnSort() == null || filter.getColumnSort().isEmpty()) {
+                filter.setColumnSort(new ArrayList<>());
+            }
             if (!filter.getColumnSort().contains("fileDate")) {
                 filter.getColumnSort().add("fileDate");
             }
 
-            if (filter.getColumnSort() != null && !filter.getColumnSort().isEmpty()) {
-                logger.info("Sortimg by columns: " + "fileDate");
-                for (String column : filter.getColumnSort()) {
-                    logger.info("," + column);
-                    if (filter.getSortType().equals("DESC")) {
-                        orderOfSorting.add(cb.desc(root.get(column)));
-                    } else {
-                        orderOfSorting.add(cb.asc(root.get(column)));
-                    }
+            for (String column : filter.getColumnSort()) {
+                logger.info("Sorting by column: {}", column);
+                if ("DESC".equalsIgnoreCase(filter.getSortType())) {
+                    orderOfSorting.add(cb.desc(root.get(column)));
+                } else {
+                    orderOfSorting.add(cb.asc(root.get(column)));
                 }
             }
             query.orderBy(orderOfSorting);
 
-            TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
+            // ✅ Pagination
+            TypedQuery<SwiftMessageHeaderPojo> typedQuery = entityManager.createQuery(query);
             typedQuery.setFirstResult((int) pageable.getOffset());
             typedQuery.setMaxResults(pageable.getPageSize());
+
             resultList = typedQuery.getResultList();
 
+            // ✅ SECOND QUERY: Fetch only messageText for the retrieved messageIds
+            if (!resultList.isEmpty() &&filter.getMessageId()!=null && !filter.getMessageId().isEmpty()) {
+                List<Long> messageIds = resultList.stream()
+                        .map(SwiftMessageHeaderPojo::getMessageId)
+                        .collect(Collectors.toList());
+                String jpq= "SELECT t.messageId,t.rawInstance from SwiftMessageInstance t where t.messageId IN :messageIds";
+                List<Object[]> instanceTexts = entityManager.createQuery(jpq, Object[].class)
+                        .setParameter("messageIds", messageIds)
+                        .getResultList();
+                 Map<Long, String> instanceTextMap = instanceTexts.stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                        ));
+                String jpq2= "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeader t where t.messageId IN :messageIds";
+                List<Object[]> hdrTexts = entityManager.createQuery(jpq2, Object[].class)
+                        .setParameter("messageIds", messageIds)
+                        .getResultList();
+                 Map<Long, String> hdrTextMap = hdrTexts.stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                        ));
+                // Create a map of messageId -> messageText
+                String jpql = "SELECT t.messageId, t.raw_messageText FROM SwiftMessageText t WHERE t.messageId IN :messageIds";
+                List<Object[]> messageTexts = entityManager.createQuery(jpql, Object[].class)
+                        .setParameter("messageIds", messageIds)
+                        .getResultList();
+
+                Map<Long, String> messageTextMap = messageTexts.stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                        ));
+                String jpq3= "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailer t where t.messageId IN :messageIds";
+                List<Object[]> trailerTexts = entityManager.createQuery(jpq3, Object[].class)
+                        .setParameter("messageIds", messageIds)
+                        .getResultList();
+                 Map<Long, String> trailerTextMap = trailerTexts.stream()
+                        .collect(Collectors.toMap(
+                                row -> (Long) row[0],
+                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                        ));
+                // ✅ Set messageText in the result objects
+                resultList.forEach(pojo -> {
+                    String messageText =instanceTextMap.get(pojo.getMessageId())+"\n"+hdrTextMap.get(pojo.getMessageId())+"\n"
+                            +trailerTextMap.get(pojo.getMessageId())+"\n"+messageTextMap.get(pojo.getMessageId());
+                    pojo.setRaw_messageText(messageText); // Assuming you have a setter
+                });
+            }
+
+            // ✅ Count query (without CLOB join)
             CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
             Root<SwiftMessageHeader> countRoot = countQuery.from(SwiftMessageHeader.class);
             List<Predicate> countPredicates = buildDynamicPredicates(filter, cb, countRoot);
@@ -109,11 +185,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             logger.error("Exception occurred while filtering Swift messages: {}", e.getMessage(), e);
         }
 
-        List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
-                .map(this::mapToPojo)
-                .collect(Collectors.toList());
-
-        return new PageImpl<>(pojoList, pageable, totalCount);
+        return new PageImpl<>(resultList, pageable, totalCount);
     }
 
     private List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
@@ -233,31 +305,16 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         SwiftMessageHeaderPojo pojo = new SwiftMessageHeaderPojo();
         pojo.setMessageId(entity.getId());
         pojo.setFileName(entity.getFileName());
-        pojo.setDate(entity.getDate());
-        pojo.setTime(entity.getTime());
-        pojo.setMtCode(entity.getMtCode());
-        pojo.setPage(entity.getPage());
-        pojo.setPriority(entity.getPriority());
         pojo.setFileType(entity.getFileType());
-        pojo.setInputRefNo(entity.getInputRefNo());
-        pojo.setOutputRefNo(entity.getOutputRefNo());
         pojo.setInpOut(entity.getInpOut());
-        pojo.setMsgDesc(entity.getMsgDesc());
         pojo.setMsgType(entity.getMsgType());
-        pojo.setSlaId(entity.getSlaId());
         pojo.setSenderBic(entity.getSenderBic());
-        pojo.setSenderBicDesc(entity.getSenderBicDesc());
         pojo.setReceiverBic(entity.getReceiverBic());
-        pojo.setReceiverBicDesc(entity.getReceiverBicDesc());
-        pojo.setUserRef(entity.getUserRef());
         pojo.setTransactionRef(entity.getTransactionRef());
         pojo.setFileDate(entity.getFileDate());
-        pojo.setMur(entity.getMur());
         pojo.setUetr(entity.getUetr());
-        pojo.setRawTxt(entity.getRawMessageData());
         pojo.setCurrency(entity.getCurrency());
-        pojo.setTransactionAmount(entity.getTransactionAmount() == null ? "" : entity.getTransactionAmount().toString());
-
+        pojo.setTransactionAmount(entity.getTransactionAmount() == null ? new BigDecimal(0) : entity.getTransactionAmount());
         return pojo;
     }
 
