@@ -189,8 +189,8 @@ public class SwiftMessageExportTxtService {
 //        }
         sb.append("-----------------Message Text -------------------\n");
 //
-        if (h.getRaw_messageText()!= null && !h.getRaw_messageText().trim().isEmpty()) {
-            String cleanedMessageText = extractMessageTextSection(h.getRaw_messageText());
+        if (h.getRawTxt()!= null && !h.getRawTxt().trim().isEmpty()) {
+            String cleanedMessageText = extractMessageTextSection(h.getRawTxt());
             if (!cleanedMessageText.trim().isEmpty()) {
                 sb.append(cleanedMessageText).append("\n");
             }

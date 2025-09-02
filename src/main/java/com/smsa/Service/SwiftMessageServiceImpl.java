@@ -165,7 +165,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 resultList.forEach(pojo -> {
                     String messageText =instanceTextMap.get(pojo.getMessageId())+"\n"+hdrTextMap.get(pojo.getMessageId())+"\n"
                             +trailerTextMap.get(pojo.getMessageId())+"\n"+messageTextMap.get(pojo.getMessageId());
-                    pojo.setRaw_messageText(messageText); // Assuming you have a setter
+                    pojo.setRawTxt(messageText); // Assuming you have a setter
                 });
             }
 

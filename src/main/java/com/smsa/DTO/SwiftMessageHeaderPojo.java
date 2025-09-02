@@ -27,7 +27,7 @@ public class SwiftMessageHeaderPojo {
     private String transactionRef;
     private String fileName;
     private String transactionRelatedRefNo;
-    private String raw_messageText;
+    private String rawTxt;
     
 
     public SwiftMessageHeaderPojo() {
@@ -48,7 +48,7 @@ public class SwiftMessageHeaderPojo {
             String transactionRef,
             String fileName,
             String transactionRelatedRefNo,
-            String raw_messageText
+            String rawTxt
             
     ) {
         this.messageId = messageId;
@@ -63,7 +63,7 @@ public class SwiftMessageHeaderPojo {
         this.msgType = msgType;
         this.transactionRef = transactionRef;
         this.fileName = fileName;
-        this.raw_messageText = raw_messageText;
+        this.rawTxt = rawTxt;
         this.transactionRelatedRefNo=transactionRelatedRefNo;
     }
 
@@ -235,19 +235,7 @@ public class SwiftMessageHeaderPojo {
         this.fileName = fileName;
     }
 
-    /**
-     * @return the raw_messageText
-     */
-    public String getRaw_messageText() {
-        return raw_messageText;
-    }
-
-    /**
-     * @param raw_messageText the raw_messageText to set
-     */
-    public void setRaw_messageText(String raw_messageText) {
-        this.raw_messageText = raw_messageText;
-    }
+ 
 
     /**
      * @return the transactionRelatedRefNo
@@ -261,6 +249,20 @@ public class SwiftMessageHeaderPojo {
      */
     public void setTransactionRelatedRefNo(String transactionRelatedRefNo) {
         this.transactionRelatedRefNo = transactionRelatedRefNo;
+    }
+
+    /**
+     * @return the rawTxt
+     */
+    public String getRawTxt() {
+        return rawTxt;
+    }
+
+    /**
+     * @param rawTxt the rawTxt to set
+     */
+    public void setRawTxt(String rawTxt) {
+        this.rawTxt = rawTxt;
     }
 
 }

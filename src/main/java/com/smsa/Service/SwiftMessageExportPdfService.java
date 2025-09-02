@@ -132,8 +132,8 @@ public class SwiftMessageExportPdfService {
 //
         sb.append("-----------------Message Text -------------------\n");
 //
-        if (notBlank(h.getRaw_messageText())) {
-            String cleaned = extractMessageTextSection(h.getRaw_messageText());
+        if (notBlank(h.getRawTxt())) {
+            String cleaned = extractMessageTextSection(h.getRawTxt());
             if (notBlank(cleaned)) {
                 sb.append(cleaned).append("\n");
             }
