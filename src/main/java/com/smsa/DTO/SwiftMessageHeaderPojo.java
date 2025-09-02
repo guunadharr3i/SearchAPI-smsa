@@ -18,7 +18,7 @@ public class SwiftMessageHeaderPojo {
     private String senderBic;
     private String receiverBic;
     private String currency;
-    private BigDecimal transactionAmount;
+    private String transactionAmount;
     private String inpOut;
     private String uetr;
     private LocalDate fileDate;
@@ -39,7 +39,7 @@ public class SwiftMessageHeaderPojo {
             String senderBic,
             String receiverBic,
             String currency,
-            BigDecimal transactionAmount,
+            String transactionAmount,
             String inpOut,
             String uetr,
             LocalDate fileDate,
@@ -126,14 +126,14 @@ public class SwiftMessageHeaderPojo {
     /**
      * @return the transactionAmount
      */
-    public BigDecimal getTransactionAmount() {
+    public String getTransactionAmount() {
         return transactionAmount;
     }
 
     /**
      * @param transactionAmount the transactionAmount to set
      */
-    public void setTransactionAmount(BigDecimal transactionAmount) {
+    public void setTransactionAmount(String transactionAmount) {
         this.transactionAmount = transactionAmount;
     }
 

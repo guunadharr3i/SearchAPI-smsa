@@ -76,7 +76,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                     root.get("senderBic"),
                     root.get("receiverBic"),
                     root.get("currency"),
-                    root.get("transactionAmount"),
+                    cb.function("TO_CHAR", String.class, root.get("transactionAmount")),
                     root.get("inpOut"),
                     root.get("uetr"),
                     root.get("fileDate"),
@@ -314,7 +314,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         pojo.setFileDate(entity.getFileDate());
         pojo.setUetr(entity.getUetr());
         pojo.setCurrency(entity.getCurrency());
-        pojo.setTransactionAmount(entity.getTransactionAmount() == null ? new BigDecimal(0) : entity.getTransactionAmount());
+        pojo.setTransactionAmount(entity.getTransactionAmount() == null ? null : entity.getTransactionAmount().toString());
         return pojo;
     }
 
