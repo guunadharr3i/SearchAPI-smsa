@@ -259,7 +259,7 @@ public class SwiftMessageController {
     }
 
     @PostMapping("/decryptSearchFilter")
-    public ResponseEntity<ApiResponse<EncryptedResponseData>> decryptSearchFilterPayload(@RequestBody EncryptedtPayloadRequest request) {
+    public ResponseEntity<ApiResponse<EncryptedResponseData>> decryptSearchFilterResponse(@RequestBody EncryptedtPayloadRequest request) {
         try {
             logger.info("Received request to /decryptFilter");
 
