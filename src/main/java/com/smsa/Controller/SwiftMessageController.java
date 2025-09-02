@@ -137,7 +137,7 @@ public class SwiftMessageController {
             Page<SwiftMessageHeaderPojo> pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
 
             EncryptedResponseData responseData = new EncryptedResponseData();
-            responseData.setAccessToken(null);
+            responseData.setAccessToken(accessToken);
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
@@ -189,7 +189,7 @@ public class SwiftMessageController {
             ObjectMapper mapper = getCustomMapper();
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("messageTypes", data);
-            responseData.put("accessToken", null);
+            responseData.put("accessToken", accessToken);
 
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
