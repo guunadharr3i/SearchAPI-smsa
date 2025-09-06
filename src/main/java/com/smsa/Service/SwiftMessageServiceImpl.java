@@ -119,27 +119,31 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             resultList = typedQuery.getResultList();
 
             // ✅ SECOND QUERY: Fetch only messageText for the retrieved messageIds
-            if (!resultList.isEmpty() &&filter.getMessageId()!=null && !filter.getMessageId().isEmpty()) {
+            if (!resultList.isEmpty() && filter.getMessageId() != null && !filter.getMessageId().isEmpty()) {
                 List<Long> messageIds = resultList.stream()
                         .map(SwiftMessageHeaderPojo::getMessageId)
                         .collect(Collectors.toList());
-                String jpq= "SELECT t.messageId,t.rawInstance from SwiftMessageInstance t where t.messageId IN :messageIds";
+                String jpq = "SELECT t.messageId,t.rawInstance from SwiftMessageInstance t where t.messageId IN :messageIds";
                 List<Object[]> instanceTexts = entityManager.createQuery(jpq, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
-                 Map<Long, String> instanceTextMap = instanceTexts.stream()
+                Map<Long, String> instanceTextMap = instanceTexts.stream()
+                        .filter(row -> row[1] != null)
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
-                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                                row -> row[1].toString(),
+                                 (v1, v2) -> v1
                         ));
-                String jpq2= "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeader t where t.messageId IN :messageIds";
+                String jpq2 = "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeader t where t.messageId IN :messageIds";
                 List<Object[]> hdrTexts = entityManager.createQuery(jpq2, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
-                 Map<Long, String> hdrTextMap = hdrTexts.stream()
+                Map<Long, String> hdrTextMap = hdrTexts.stream()
+                        .filter(row -> row[1] != null)
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
-                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                                row -> row[1].toString(),
+                                 (v1, v2) -> v1
                         ));
                 // Create a map of messageId -> messageText
                 String jpql = "SELECT t.messageId, t.raw_messageText FROM SwiftMessageText t WHERE t.messageId IN :messageIds";
@@ -148,23 +152,28 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                         .getResultList();
 
                 Map<Long, String> messageTextMap = messageTexts.stream()
+                        .filter(row -> row[1] != null)
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
-                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                                row ->  row[1].toString(),
+                                 (v1, v2) -> v1
                         ));
-                String jpq3= "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailer t where t.messageId IN :messageIds";
+                String jpq3 = "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailer t where t.messageId IN :messageIds";
                 List<Object[]> trailerTexts = entityManager.createQuery(jpq3, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
-                 Map<Long, String> trailerTextMap = trailerTexts.stream()
+                Map<Long, String> trailerTextMap = trailerTexts.stream()
+                        .filter(row -> row[1] != null) // ✅ skip null values
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
-                                row -> row[1] != null ? row[1].toString() : null // ✅ Safe conversion
+                                row -> row[1].toString(),
+                                (v1, v2) -> v1 // handle duplicates (keep first)
                         ));
+
                 // ✅ Set messageText in the result objects
                 resultList.forEach(pojo -> {
-                    String messageText =instanceTextMap.get(pojo.getMessageId())+"\n"+hdrTextMap.get(pojo.getMessageId())+"\n"
-                            +trailerTextMap.get(pojo.getMessageId())+"\n"+messageTextMap.get(pojo.getMessageId());
+                    String messageText = instanceTextMap.get(pojo.getMessageId()) + "\n" + hdrTextMap.get(pojo.getMessageId()) + "\n"
+                            + trailerTextMap.get(pojo.getMessageId()) + "\n" + messageTextMap.get(pojo.getMessageId());
                     pojo.setRawTxt(messageText); // Assuming you have a setter
                 });
             }
