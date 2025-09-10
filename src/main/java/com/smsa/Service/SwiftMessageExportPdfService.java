@@ -40,6 +40,8 @@ public class SwiftMessageExportPdfService {
         if (records == null || records.isEmpty()) {
             logger.warn("No records found to export to PDF.");
             return null;
+        }else{
+            logger.info("withtext Enabled: "+filters.isWithMsgText()+" size of records: "+records.size()+" is messageText is empty: "+records.get(0).getmText().isEmpty());
         }
 
         File pdfFile = new File(tempDirPath, "swift_messages_" + System.currentTimeMillis() + ".pdf");
@@ -143,31 +145,4 @@ public class SwiftMessageExportPdfService {
         return o.toString().replace("\n", " ").replace("\r", " ");
     }
 
-    private String extractMessageTextSection(String raw) {
-        if (raw == null) {
-            return "";
-        }
-
-        String startMarker = "--------------------------- Message Text ---------------------------";
-        String endMarker = "--------------------------- Message Trailer ------------------------";
-
-        int startIndex = raw.indexOf(startMarker);
-        int endIndex = raw.indexOf(endMarker, startIndex);
-
-        if (startIndex == -1 || endIndex == -1) {
-            return "";
-        }
-
-        String between = raw.substring(startIndex + startMarker.length(), endIndex);
-        String[] lines = between.split("\r?\n");
-        StringBuilder cleaned = new StringBuilder();
-
-        for (String line : lines) {
-            if (!line.trim().isEmpty()) {
-                cleaned.append(line).append("\n");
-            }
-        }
-
-        return cleaned.toString();
-    }
 }

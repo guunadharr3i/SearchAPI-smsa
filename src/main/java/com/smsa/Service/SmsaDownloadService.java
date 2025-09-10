@@ -94,19 +94,22 @@ public class SmsaDownloadService {
             TypedQuery<SmsaDownloadResponsePojo> typedQuery = entityManager.createQuery(query);
             typedQuery.setHint("org.hibernate.fetchSize", 5000);
             resultList = typedQuery.getResultList();
+            logger.info("Is mesageText enabled: "+filter.isWithMsgText());
             if (filter.isWithMsgText()) {
                 List<Long> messageIds = resultList.stream()
                         .map(SmsaDownloadResponsePojo::getMessageId)
                         .collect(Collectors.toList());
                 Map<Long, String> msgTextMap = getMessagesByIds(messageIds);
                 resultList.forEach(pojo -> {
-                    String msgText = msgTextMap.get(pojo.getMessageId());
+                    String msgText = msgTextMap.get(pojo.getMessageId())==null?"":msgTextMap.get(pojo.getMessageId());
                     pojo.setmText(msgText);
                 });
+                logger.info("result list size: "+resultList.size());
             }
 
         } catch (Exception e) {
             logger.error("Exception occured while fetching data pls check logs: " + e);
+            logger.info("Exception: "+e);
         }
         return resultList;
     }

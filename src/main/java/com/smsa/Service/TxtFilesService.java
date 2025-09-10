@@ -10,7 +10,7 @@ package com.smsa.Service;
  */
 
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -31,11 +31,11 @@ public class TxtFilesService {
     private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(TxtFilesService.class);
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
 
     public File exportSelectedMessagesToTxt(SwiftMessageHeaderFilterPojo filters, String tempDirPath) throws IOException {
 
-        List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);
         if (records == null || records.isEmpty()) {
             logger.warn("No Swift messages found for provided transaction references.");
             return null;
@@ -45,7 +45,7 @@ public class TxtFilesService {
         logger.info("Creating file at: {}", txtFile.getAbsolutePath());
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(txtFile))) {
-            for (SwiftMessageHeaderPojo header : records) {
+            for (SmsaDownloadResponsePojo header : records) {
                 logger.debug("Writing record with transactionRef: {}", header.getTransactionRef());
                 writer.write(formatRecord(header));
                 writer.newLine(); // extra space between records
@@ -59,37 +59,23 @@ public class TxtFilesService {
         return txtFile;
     }
 
-    private String formatRecord(SwiftMessageHeaderPojo h) {
+    private String formatRecord(SmsaDownloadResponsePojo h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
 
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
 
        StringBuilder sb = new StringBuilder();
-         sb.append("------------------------------------\n");
-        sb.append("Identifier :- ").append(safe(h.getMessageId())).append("\n");
-        sb.append("Message Type :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Receiver  :- ").append(safe(h.getCurrency())).append("\n");
-        sb.append("Send\\Receive Date :- ").append(safe(h.getTransactionAmount())).append("\n");
-        sb.append("Send\\Receive Time :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("File Type :- ").append(safe(h.getUetr())).append("\n");
-        sb.append("Text :- \n");
-
-//        if (notBlank(h.getInstanceRaw()))
-//            sb.append(h.getInstanceRaw().trim()).append("\n");
-//
-//        if (notBlank(h.getHeaderRaw()))
-//            sb.append(h.getHeaderRaw().trim()).append("\n");
-//
-        sb.append("-----------------Message Text -------------------\n");
-
-        if (notBlank(h.getRawTxt())) {
-            String cleaned = extractMessageTextSection(h.getRawTxt());
-            if (notBlank(cleaned))
-                sb.append(cleaned).append("\n");
-        }
-
         sb.append("------------------------------------\n");
+        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
+        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
+        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
+        sb.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
+        sb.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
+        sb.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
+        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+        sb.append("Text :- \n");
+        sb.append(h.getmText());
+        sb.append("\n\n\n");
         return sb.toString();
     }
 
