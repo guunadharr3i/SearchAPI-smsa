@@ -1,15 +1,8 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.smsa.Service;
 
-/**
- *
- * @author abcom
- */
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -33,12 +26,12 @@ public class SwiftMessageCsvExportService {
             .getLogger(SwiftMessageCsvExportService.class);
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
 
     public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
         logger.info("Starting exportSwiftHeadersToZip with folderPath: {}", folderPath);
 
-        List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);
         logger.info("Fetched {} SwiftMessageHeader records from DB", headers.size());
 
         if (headers.isEmpty()) {
@@ -58,7 +51,7 @@ public class SwiftMessageCsvExportService {
         return zipFilePath;
     }
 
-    private int calculateRowsPerFile(SwiftMessageHeaderPojo sample) {
+    private int calculateRowsPerFile(SmsaDownloadResponsePojo sample) {
         int estimatedRowSize = estimateRowSize(sample) + 300;
         int maxFileSizeBytes = 1024 * 1024; // 1MB
         return Math.max(1, (int) (maxFileSizeBytes * 0.9 / estimatedRowSize));
@@ -72,17 +65,17 @@ public class SwiftMessageCsvExportService {
         return tempDir;
     }
 
-    private void writeCsvFiles(List<SwiftMessageHeaderPojo> headers, File tempDir, int rowsPerFile) throws IOException {
+    private void writeCsvFiles(List<SmsaDownloadResponsePojo> headers, File tempDir, int rowsPerFile) throws IOException {
         int fileCount = 1;
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
-            List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
+            List<SmsaDownloadResponsePojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
             File csvFile = new File(tempDir, "General_Search_Report_" + fileCount++ + ".csv");
 
             try (BufferedWriter writer = new BufferedWriter(
                     new OutputStreamWriter(new FileOutputStream(csvFile), StandardCharsets.UTF_8))) {
                 logger.info("Writing file: {}", csvFile.getName());
                 writeCsvHeader(writer);
-                for (SwiftMessageHeaderPojo h : chunk) {
+                for (SmsaDownloadResponsePojo h : chunk) {
                     writeCsvRow(writer, h);
                 }
             } catch (IOException e) {
@@ -93,7 +86,8 @@ public class SwiftMessageCsvExportService {
     }
 
     private void zipCsvFiles(File tempDir, String zipFilePath) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(zipFilePath); ZipOutputStream zos = new ZipOutputStream(fos)) {
+        try (FileOutputStream fos = new FileOutputStream(zipFilePath);
+             ZipOutputStream zos = new ZipOutputStream(fos)) {
 
             File[] files = tempDir.listFiles((dir, name) -> name.endsWith(".csv"));
             if (files != null) {
@@ -142,67 +136,88 @@ public class SwiftMessageCsvExportService {
     }
 
     private void writeCsvHeader(BufferedWriter writer) throws IOException {
-        writer.write(String.join(",",
-                "MESSAGE ID",
-                "SENDER BIC",
-                "RECEIVER BIC",
-                "CURRENCY",
-                "TRANSACTION AMOUNT",
-                "INP OUT",
-                "UETR",
-                "FILE DATE",
-                "FILE TYPE",
-                "MESSAGE TYPE",
-                "TRANSACTION REF",
-                "FILE NAME"
+        writer.write(String.join("|",
+                "SerialNo",
+                "Identifier",
+                "Sender",
+                "Receiver",
+                "Message Type",
+                "Reference No",
+                "Related Ref No",
+                "Send/Rec Date",
+                "Send/Rec Time",
+                "ValueDate",
+                "Currency",
+                "Amount",
+                "m_text",
+                "M_History",
+                "File Type A/N",
+                "Send-Rec DateTime",
+                "Unit",
+                "MIR/MOR"
         ));
 
         writer.newLine();
     }
 
-    private void writeCsvRow(BufferedWriter writer, SwiftMessageHeaderPojo h) throws IOException {
-        writer.write(String.join(",",
-                csv(h.getMessageId()),
-                csv(h.getSenderBic()),
-                csv(h.getReceiverBic()),
-                csv(h.getCurrency()),
-                csv(h.getTransactionAmount()),
-                csv(h.getInpOut()),
-                csv(h.getUetr()),
-                csv(h.getFileDate()),
-                csv(h.getFileType()),
-                csv(h.getMsgType()),
-                csv(h.getTransactionRef()),
-                csv(h.getFileName())
+    private void writeCsvRow(BufferedWriter writer, SmsaDownloadResponsePojo h) throws IOException {
+        writer.write(String.join("|",
+                pipe(1),
+                pipe(h.getInpOut()),
+                pipe(h.getSenderBic()),
+                pipe(h.getReceiverBic()),
+                pipe(h.getMsgType()),
+                pipe(h.getTransactionRef()),
+                pipe(h.getTransactionRelatedRefNo()),
+                pipe(h.getFileDate()),
+                pipe(h.getFileTime()),
+                pipe(" "),
+                pipe(h.getCurrency()),
+                pipe(h.getTransactionAmount()),
+                pipe(h.getmText()),
+                pipe(" "),
+                pipe(h.getFileType()),
+                pipe(h.getFileDate()+","+h.getFileTime()),
+                pipe(" "),
+                pipe(h.getMiorRef())
         ));
 
         writer.newLine();
     }
 
-    private String csv(Object o) {
+    private String pipe(Object o) {
         if (o == null) {
             return "";
         }
         String s = o.toString().replace("\"", "\"\"");
-        return "\"" + s + "\"";
+        // Only wrap in quotes if it contains pipe or newline
+        if (s.contains("|") || s.contains("\n")) {
+            return "\"" + s + "\"";
+        }
+        return s;
     }
 
-    private int estimateRowSize(SwiftMessageHeaderPojo h) {
+    private int estimateRowSize(SmsaDownloadResponsePojo h) {
         String raw = String.join("",
-                csv(h.getMessageId()),
-                csv(h.getSenderBic()),
-                csv(h.getReceiverBic()),
-                csv(h.getCurrency()),
-                csv(h.getTransactionAmount()),
-                csv(h.getInpOut()),
-                csv(h.getUetr()),
-                csv(h.getFileDate()),
-                csv(h.getFileType()),
-                csv(h.getMsgType()),
-                csv(h.getTransactionRef()),
-                csv(h.getFileName())
+                pipe(1),
+                pipe(h.getInpOut()),
+                pipe(h.getSenderBic()),
+                pipe(h.getReceiverBic()),
+                pipe(h.getMsgType()),
+                pipe(h.getTransactionRef()),
+                pipe(h.getTransactionRelatedRefNo()),
+                pipe(h.getFileDate()),
+                pipe(h.getFileTime()),
+                pipe(" "),
+                pipe(h.getCurrency()),
+                pipe(h.getTransactionAmount()),
+                pipe(h.getmText()),
+                pipe(" "),
+                pipe(h.getFileType()),
+                pipe(h.getFileDate()+","+h.getFileTime()),
+                pipe(" "),
+                pipe(h.getMiorRef())
         );
         return raw.getBytes(StandardCharsets.UTF_8).length;
     }
-
 }

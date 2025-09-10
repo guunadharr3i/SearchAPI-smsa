@@ -65,19 +65,14 @@ public class TxtFilesService {
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
 
        StringBuilder sb = new StringBuilder();
-        sb.append("------------------------------------\n");
-        sb.append("Message Id :- ").append(safe(h.getMessageId())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Receiver :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Currency :- ").append(safe(h.getCurrency())).append("\n");
-        sb.append("Transaction Amount :- ").append(safe(h.getTransactionAmount())).append("\n");
-        sb.append("Inp Out :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("UETR :- ").append(safe(h.getUetr())).append("\n");
-        sb.append("File Date :- ").append(dateStr).append("\n");
-        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
-        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
-        sb.append("Transaction Ref :- ").append(safe(h.getTransactionRef())).append("\n");
-        sb.append("File Name :- ").append(safe(h.getFileName())).append("\n");
+         sb.append("------------------------------------\n");
+        sb.append("Identifier :- ").append(safe(h.getMessageId())).append("\n");
+        sb.append("Message Type :- ").append(safe(h.getSenderBic())).append("\n");
+        sb.append("Sender :- ").append(safe(h.getReceiverBic())).append("\n");
+        sb.append("Receiver  :- ").append(safe(h.getCurrency())).append("\n");
+        sb.append("Send\\Receive Date :- ").append(safe(h.getTransactionAmount())).append("\n");
+        sb.append("Send\\Receive Time :- ").append(safe(h.getInpOut())).append("\n");
+        sb.append("File Type :- ").append(safe(h.getUetr())).append("\n");
         sb.append("Text :- \n");
 
 //        if (notBlank(h.getInstanceRaw()))

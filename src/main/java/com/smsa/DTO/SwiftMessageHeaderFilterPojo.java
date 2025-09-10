@@ -41,6 +41,7 @@ public class SwiftMessageHeaderFilterPojo {
     private String sortType = "DESC";
     private String rawMessageData;
     private String transactionRelatedRefNo;
+    private boolean withMsgText=false;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -369,6 +370,20 @@ public class SwiftMessageHeaderFilterPojo {
      */
     public void setTransactionRelatedRefNo(String transactionRelatedRefNo) {
         this.transactionRelatedRefNo = transactionRelatedRefNo;
+    }
+
+    /**
+     * @return the withMsgText
+     */
+    public boolean isWithMsgText() {
+        return withMsgText;
+    }
+
+    /**
+     * @param withMsgText the withMsgText to set
+     */
+    public void setWithMsgText(boolean withMsgText) {
+        this.withMsgText = withMsgText;
     }
 
 }

@@ -258,6 +258,16 @@ public class SwiftMessageController {
         }
     }
 
+    @PostMapping("/fetchRawData")
+    public ResponseEntity<?> getRawFilterData(@RequestBody Map<String, String> req) {
+        try {
+              List<String> rawData=service.getRawData(req.get("transactionRef"));
+              return ResponseEntity.ok(rawData);
+        } catch (Exception e) {
+             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Exception Occured Pls Check Logs");
+        }
+    }
+
     @PostMapping("/decryptSearchFilter")
     public ResponseEntity<ApiResponse<EncryptedResponseData>> decryptSearchFilterResponse(@RequestBody EncryptedtPayloadRequest request) {
         try {

@@ -42,7 +42,10 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
             + "ORDER BY COUNT(s) DESC")
     List<Object[]> findTopReciverBicsStartingWithICIC(Pageable pageable);
 
-    @Query("SELECT DISTINCT s.msgType FROM SwiftMessageHeader s ORDER BY s.msgType")
+    @Query("SELECT DISTINCT s.msgType FROM SwiftMessageHeader s ORDER BY s.msgType asc")
     List<String> findDistinctSmsaMsgTypesOrdered();
+
+    @Query("SELECT DISTINCT s.messageId from SwiftMessageHeader s  where s.transactionRef=:transactionRef order by s.messageId")
+    List<Long> findDistinctSmsaMessageIdOrdered(String transactionRef);
 
 }

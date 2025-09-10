@@ -1,7 +1,8 @@
 package com.smsa.Service;
 
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;   // <— switched
 import org.apache.poi.ss.usermodel.*;
 import org.apache.logging.log4j.LogManager;
@@ -19,7 +20,7 @@ public class SwiftMessageExcelExportService {
     private static final Logger log = LogManager.getLogger(SwiftMessageExcelExportService.class);
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
 
     /**
      * Generates a single .xls workbook (byte[]) with all filtered headers.
@@ -27,7 +28,7 @@ public class SwiftMessageExcelExportService {
     public byte[] exportSwiftHeadersToSingleExcel(SwiftMessageHeaderFilterPojo filters) throws IOException {
         log.info("Starting SwiftMessageHeader single Excel export...");
 
-        List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);
         if (headers.isEmpty()) {
             log.warn("No SwiftMessageHeader records found. Returning empty Excel.");
         }
@@ -39,7 +40,7 @@ public class SwiftMessageExcelExportService {
             createHeaderRow(sheet);
 
             int rowNum = 1;
-            for (SwiftMessageHeaderPojo h : headers) {
+            for (SmsaDownloadResponsePojo h : headers) {
                 Row row = sheet.createRow(rowNum++);
                 populateSheetRow(row, h);
             }
@@ -58,19 +59,24 @@ public class SwiftMessageExcelExportService {
     // ---------- helpers -----------------------------------------------------
     private void createHeaderRow(Sheet sheet) {
         String[] headers = {
-            "MESSAGE ID",
-            "FILE NAME",
-            "DATE",
-            "TIME",
-            "MT CODE",
-            "PRIORITY",
-            "SENDER BIC",
-            "RECEIVER BIC",
-            "TRANSACTION REF",
-            "AMOUNT",
-            "CURRENCY",
-            "TRANSACTION RESULT",
-            "RAW MESSAGE TEXT"
+            "SerialNo",
+            "Identifier",
+            "Sender",
+            "Receiver",
+            "Message Type",
+            "Reference No",
+            "Related Ref No",
+            "Send/Rec Date",
+            "Send/Rec Time",
+            "ValueDate",
+            "Currency",
+            "Amount",
+            "M_Text",
+            "M_History",
+            "File Type A/N",
+            "Send-Rec DateTime",
+            "Unit",
+            "MIR/MOR"
         };
 
         Row headerRow = sheet.createRow(0);
@@ -79,19 +85,25 @@ public class SwiftMessageExcelExportService {
         }
     }
 
-    private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
-        row.createCell(0).setCellValue(safeLong(h.getMessageId()));       // MESSAGE ID
-        row.createCell(1).setCellValue(safe(h.getSenderBic()));           // SENDER BIC
-        row.createCell(2).setCellValue(safe(h.getReceiverBic()));         // RECEIVER BIC
-        row.createCell(3).setCellValue(safe(h.getCurrency()));            // CURRENCY
-        row.createCell(4).setCellValue(safe(h.getTransactionAmount()));   // TRANSACTION AMOUNT
-        row.createCell(5).setCellValue(safe(h.getInpOut()));              // INP OUT
-        row.createCell(6).setCellValue(safe(h.getUetr()));                // UETR
-        row.createCell(7).setCellValue(safe(h.getFileDate()));            // FILE DATE
-        row.createCell(8).setCellValue(safe(h.getFileType()));            // FILE TYPE
-        row.createCell(9).setCellValue(safe(h.getMsgType()));             // MESSAGE TYPE
-        row.createCell(10).setCellValue(safe(h.getTransactionRef()));     // TRANSACTION REF
-        row.createCell(11).setCellValue(safe(h.getFileName()));           // FILE NAME
+    private void populateSheetRow(Row row, SmsaDownloadResponsePojo h) {
+        row.createCell(0).setCellValue(1);
+        row.createCell(1).setCellValue(safe(h.getInpOut()));
+        row.createCell(2).setCellValue(safe(h.getSenderBic()));
+        row.createCell(3).setCellValue(safe(h.getReceiverBic()));
+        row.createCell(4).setCellValue(safe(h.getMsgType()));
+        row.createCell(5).setCellValue(safe(h.getTransactionRef()));
+        row.createCell(6).setCellValue(safe(h.getTransactionRelatedRefNo()));
+        row.createCell(7).setCellValue(safe(h.getFileDate()));
+        row.createCell(8).setCellValue(safe(h.getFileTime()));
+        row.createCell(9).setCellValue(" ");
+        row.createCell(10).setCellValue(safe(h.getCurrency()));
+        row.createCell(11).setCellValue(safe(h.getTransactionAmount()));
+        row.createCell(12).setCellValue(safe(h.getmText()));
+        row.createCell(13).setCellValue("");
+        row.createCell(14).setCellValue(safe(h.getFileType()));
+        row.createCell(15).setCellValue(safe(h.getFileDate() + "," + h.getFileTime()));
+        row.createCell(16).setCellValue(" ");
+        row.createCell(17).setCellValue(safe(h.getMiorRef()));
     }
 
     // ---------- utility -----------------------------------------------------

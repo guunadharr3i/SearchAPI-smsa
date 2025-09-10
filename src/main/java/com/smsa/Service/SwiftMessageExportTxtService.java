@@ -9,8 +9,7 @@ package com.smsa.Service;
  * @author abcom
  */
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
-import com.smsa.repository.SwiftMessageHeaderRepository;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -22,7 +21,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -36,16 +34,14 @@ public class SwiftMessageExportTxtService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportTxtService.class);
 
-    @Autowired
-    private SwiftMessageHeaderRepository repository;
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
 
     public File exportTxtZip(String baseDirPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
         log.info("Starting export of SwiftMessageHeaders to TXT and ZIP format...");
 
-        List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);
         if (records.isEmpty()) {
             log.warn("No SwiftMessageHeader records found.");
             return null;
@@ -72,11 +68,11 @@ public class SwiftMessageExportTxtService {
         return tempDir;
     }
 
-    private List<StringBuilder> splitIntoChunks(List<SwiftMessageHeaderPojo> records, int maxBytes) {
+    private List<StringBuilder> splitIntoChunks(List<SmsaDownloadResponsePojo> records, int maxBytes) {
         List<StringBuilder> chunks = new ArrayList<>();
         StringBuilder currentChunk = new StringBuilder();
 
-        for (SwiftMessageHeaderPojo header : records) {
+        for (SmsaDownloadResponsePojo header : records) {
             String formatted = formatRecord(header);
             byte[] lineBytes = formatted.getBytes(StandardCharsets.UTF_8);
 
@@ -142,60 +138,41 @@ public class SwiftMessageExportTxtService {
         }
     }
 
-    private String formatRecord(SwiftMessageHeaderPojo h) {
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
-        DateTimeFormatter inputTimeParser = DateTimeFormatter.ofPattern("HHmmss");
-        DateTimeFormatter outputTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private String formatRecord(SmsaDownloadResponsePojo h) {
+//        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
+//        DateTimeFormatter inputTimeParser = DateTimeFormatter.ofPattern("HHmmss");
+//        DateTimeFormatter outputTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-        String dateStr = "";
-        String timeStr = "";
-
-        if (h.getFileDate() != null) {
-            dateStr = h.getFileDate().format(dateFormatter);
-        }
-
-//        if (h.getTime() != null && !h.getTime().isEmpty()) {
-//            try {
-//                LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
-//                timeStr = parsedTime.format(outputTimeFormatter);
-//            } catch (DateTimeParseException e) {
-//                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
-//                timeStr = h.getTime();
-//            }
+//        String dateStr = "";
+//        String timeStr = "";
+//
+//        if (h.getFileDate() != null) {
+//            dateStr = h.getFileDate().format(dateFormatter);
 //        }
+//
+////        if (h.getTime() != null && !h.getTime().isEmpty()) {
+////            try {
+////                LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
+////                timeStr = parsedTime.format(outputTimeFormatter);
+////            } catch (DateTimeParseException e) {
+////                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
+////                timeStr = h.getTime();
+////            }
+////        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("------------------------------------\n");
-        sb.append("Message Id :- ").append(safe(h.getMessageId())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Receiver :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Currency :- ").append(safe(h.getCurrency())).append("\n");
-        sb.append("Transaction Amount :- ").append(safe(h.getTransactionAmount())).append("\n");
-        sb.append("Inp Out :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("UETR :- ").append(safe(h.getUetr())).append("\n");
-        sb.append("File Date :- ").append(dateStr).append("\n");
-        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
         sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
-        sb.append("Transaction Ref :- ").append(safe(h.getTransactionRef())).append("\n");
-        sb.append("File Name :- ").append(safe(h.getFileName())).append("\n");
+        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
+        sb.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
+        sb.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
+        sb.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
+        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
         sb.append("Text :- \n");
-
-//        if (h.getInstanceRaw() != null && !h.getInstanceRaw().trim().isEmpty()) {
-//            sb.append(h.getInstanceRaw().trim()).append("\n");
-//        }
-//
-//        if (h.getHeaderRaw() != null && !h.getHeaderRaw().trim().isEmpty()) {
-//            sb.append(h.getHeaderRaw().trim()).append("\n");
-//        }
-        sb.append("-----------------Message Text -------------------\n");
-//
-        if (h.getRawTxt()!= null && !h.getRawTxt().trim().isEmpty()) {
-            String cleanedMessageText = extractMessageTextSection(h.getRawTxt());
-            if (!cleanedMessageText.trim().isEmpty()) {
-                sb.append(cleanedMessageText).append("\n");
-            }
-        }
-        sb.append("------------------------------------\n");
+        sb.append(h.getmText());
+        sb.append("\n\n\n");
+       
         return sb.toString();
     }
 
@@ -215,40 +192,4 @@ public class SwiftMessageExportTxtService {
         return o.toString().replace("\n", " ").replace("\r", " ");
     }
 
-    private String extractMessageTextSection(String raw) {
-        if (raw == null) {
-            return "";
-        }
-
-        String startMarker = "--------------------------- Message Text ---------------------------";
-        String endMarker = "--------------------------- Message Trailer ------------------------";
-
-        int startIndex = raw.indexOf(startMarker);
-        if (startIndex == -1) {
-            return "";
-        }
-
-        int endIndex = raw.indexOf(endMarker, startIndex);
-        if (endIndex == -1) {
-            return "";
-        }
-
-        String between = raw.substring(startIndex + startMarker.length(), endIndex);
-        String[] lines = between.split("\r?\n");
-        int start = 0, end = lines.length - 1;
-
-        while (start <= end && lines[start].trim().isEmpty()) {
-            start++;
-        }
-        while (end >= start && lines[end].trim().isEmpty()) {
-            end--;
-        }
-
-        StringBuilder cleaned = new StringBuilder();
-        for (int i = start; i <= end; i++) {
-            cleaned.append(lines[i]).append("\n");
-        }
-
-        return cleaned.toString();
-    }
 }

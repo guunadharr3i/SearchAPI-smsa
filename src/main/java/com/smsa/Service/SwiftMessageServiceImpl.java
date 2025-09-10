@@ -12,8 +12,12 @@ import org.springframework.stereotype.Service;
 import java.beans.IntrospectionException;
 import java.beans.Introspector;
 import java.beans.PropertyDescriptor;
+import java.io.BufferedReader;
+import java.io.Reader;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
+import java.sql.Clob;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.EntityManager;
@@ -30,7 +34,6 @@ import javax.persistence.criteria.Expression;
 import javax.persistence.criteria.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @Service
@@ -132,7 +135,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
                                 row -> row[1].toString(),
-                                 (v1, v2) -> v1
+                                (v1, v2) -> v1
                         ));
                 String jpq2 = "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeader t where t.messageId IN :messageIds";
                 List<Object[]> hdrTexts = entityManager.createQuery(jpq2, Object[].class)
@@ -143,7 +146,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
                                 row -> row[1].toString(),
-                                 (v1, v2) -> v1
+                                (v1, v2) -> v1
                         ));
                 // Create a map of messageId -> messageText
                 String jpql = "SELECT t.messageId, t.raw_messageText FROM SwiftMessageText t WHERE t.messageId IN :messageIds";
@@ -155,8 +158,8 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                         .filter(row -> row[1] != null)
                         .collect(Collectors.toMap(
                                 row -> (Long) row[0],
-                                row ->  row[1].toString(),
-                                 (v1, v2) -> v1
+                                row -> row[1].toString(),
+                                (v1, v2) -> v1
                         ));
                 String jpq3 = "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailer t where t.messageId IN :messageIds";
                 List<Object[]> trailerTexts = entityManager.createQuery(jpq3, Object[].class)
@@ -197,7 +200,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return new PageImpl<>(resultList, pageable, totalCount);
     }
 
-    private List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+    public List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
         List<Predicate> predicates = new ArrayList<>();
 
         try {
@@ -205,7 +208,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 String fieldName = pd.getName();
                 Object value;
 
-                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName)) {
+                if (!"class".equals(fieldName) && !"sortType".equals(fieldName) && !"columnSort".equals(fieldName) && !"withMsgText".equals(fieldName)) {
                     value = pd.getReadMethod().invoke(filter);
                     if (value != null) {
                         if (value instanceof List) {
@@ -434,4 +437,60 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return repository.findDistinctSmsaMsgTypesOrdered();
     }
 
+    @Override
+    public List<String> getRawData(String transactionRef) {
+        List<Long> msgIds = repository.findDistinctSmsaMessageIdOrdered(transactionRef);
+        List<String> rawData = getMessagesByIds(msgIds);
+        return rawData;
+    }
+
+    public List<String> getMessagesByIds(List<Long> messageIds) {
+        String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
+                + "       h.SMSA_HDR_TEXT, "
+                + "       t.SMSA_MSG_RAW, "
+                + "       tr.SMSA_TRL_RAW "
+                + "FROM SMSA_INST_TXT i "
+                + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
+                + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
+                + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
+                + "WHERE i.SMSA_MESSAGE_ID IN (:messageIds)";
+
+        List<Object[]> results = entityManager.createNativeQuery(sql)
+                .setParameter("messageIds", messageIds)
+                .getResultList();
+        return results.stream()
+                .map(row -> String.join("\n",
+                clobToString(row[1]),
+                clobToString(row[2]),
+                clobToString(row[3]),
+                clobToString(row[4])
+        ))
+                .collect(Collectors.toList());
+
+    }
+
+    private String clobToString(Object clobObj) {
+        if (clobObj == null) {
+            return "";
+        }
+        if (clobObj instanceof String) {
+            return (String) clobObj; // already string
+        }
+        if (clobObj instanceof Clob) {
+            try {
+                Clob clob = (Clob) clobObj;
+                StringBuilder sb = new StringBuilder();
+                try (Reader reader = clob.getCharacterStream(); BufferedReader br = new BufferedReader(reader)) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        sb.append(line).append("\n");
+                    }
+                }
+                return sb.toString().trim();
+            } catch (SQLException | java.io.IOException e) {
+                throw new RuntimeException("Failed to convert CLOB to String", e);
+            }
+        }
+        return clobObj.toString();
+    }
 }

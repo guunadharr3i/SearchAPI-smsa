@@ -9,7 +9,7 @@ package com.smsa.Service;
  * @author abcom
  */
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 import org.apache.pdfbox.pdmodel.*;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
@@ -30,13 +30,13 @@ import org.springframework.stereotype.Service;
 public class SwiftMessageExportPdfService {
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
     private static final Logger logger = LogManager.getLogger(SwiftMessageExportPdfService.class);
 
     public File exportSelectedMessagesToPdf(String tempDirPath, SwiftMessageHeaderFilterPojo filters) {
         logger.info("Exporting selected messages to PDF. Temp directory: {}, Filters: {}", tempDirPath, filters);
 
-        List<SwiftMessageHeaderPojo> records = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);
         if (records == null || records.isEmpty()) {
             logger.warn("No records found to export to PDF.");
             return null;
@@ -60,7 +60,7 @@ public class SwiftMessageExportPdfService {
             content.beginText();
             content.newLineAtOffset(margin, yPosition);
 
-            for (SwiftMessageHeaderPojo record : records) {
+            for (SmsaDownloadResponsePojo record : records) {
                 String[] lines = formatRecord(record).split("\n");
 
                 for (String line : lines) {
@@ -104,42 +104,22 @@ public class SwiftMessageExportPdfService {
         return null;
     }
 
-    private String formatRecord(SwiftMessageHeaderPojo h) {
+    private String formatRecord(SmsaDownloadResponsePojo h) {
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
 
         StringBuilder sb = new StringBuilder();
-        sb.append("------------------------------------\n");
-        sb.append("Message Id :- ").append(safe(h.getMessageId())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Receiver :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Currency :- ").append(safe(h.getCurrency())).append("\n");
-        sb.append("Transaction Amount :- ").append(safe(h.getTransactionAmount())).append("\n");
-        sb.append("Inp Out :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("UETR :- ").append(safe(h.getUetr())).append("\n");
-        sb.append("File Date :- ").append(dateStr).append("\n");
-        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+         sb.append("------------------------------------\n");
+        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
         sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
-        sb.append("Transaction Ref :- ").append(safe(h.getTransactionRef())).append("\n");
-        sb.append("File Name :- ").append(safe(h.getFileName())).append("\n");
+        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
+        sb.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
+        sb.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
+        sb.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
+        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
         sb.append("Text :- \n");
-
-//        if (notBlank(h.()))
-//            sb.append(h.getInstanceRaw().trim()).append("\n");
-//
-//        if (notBlank(h.getHeaderRaw()))
-//            sb.append(h.getHeaderRaw().trim()).append("\n");
-//
-        sb.append("-----------------Message Text -------------------\n");
-//
-        if (notBlank(h.getRawTxt())) {
-            String cleaned = extractMessageTextSection(h.getRawTxt());
-            if (notBlank(cleaned)) {
-                sb.append(cleaned).append("\n");
-            }
-        }
-//
-        sb.append("------------------------------------\n");
+        sb.append(h.getmText());
+        sb.append("\n\n\n");
         return sb.toString();
     }
 

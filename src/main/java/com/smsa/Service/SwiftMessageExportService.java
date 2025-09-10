@@ -9,7 +9,7 @@ package com.smsa.Service;
  * @author abcom
  */
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SwiftMessageHeaderPojo;
+import com.smsa.DTO.SmsaDownloadResponsePojo;
 
 import java.io.*;
 import java.util.List;
@@ -28,7 +28,7 @@ public class SwiftMessageExportService {
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportService.class);
 
     @Autowired
-    private SwiftMessageService swiftMessageService;
+    private SmsaDownloadService swiftMessageService;
 
     /**
      * Stream Excel files directly into a ZIP output stream
@@ -36,7 +36,7 @@ public class SwiftMessageExportService {
     public void streamSwiftHeadersToZip(ZipOutputStream zos, SwiftMessageHeaderFilterPojo filters) throws IOException {
         log.info("Streaming SwiftMessageHeader export directly to ZIP...");
 
-        List<SwiftMessageHeaderPojo> headers = swiftMessageService.getFilteredMessages(filters);
+        List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);
         if (headers == null || headers.isEmpty()) {
             log.warn("No SwiftMessageHeader records found. Skipping export.");
             return;
@@ -46,7 +46,7 @@ public class SwiftMessageExportService {
         int fileCount = 1;
 
         for (int i = 0; i < headers.size(); i += rowsPerFile) {
-            List<SwiftMessageHeaderPojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
+            List<SmsaDownloadResponsePojo> chunk = headers.subList(i, Math.min(i + rowsPerFile, headers.size()));
             String fileName = "swift_headers_" + (fileCount++) + ".xlsx";
 
             zos.putNextEntry(new ZipEntry(fileName));
@@ -56,7 +56,7 @@ public class SwiftMessageExportService {
                 createHeaderRow(sheet);
 
                 int rowNum = 1;
-                for (SwiftMessageHeaderPojo header : chunk) {
+                for (SmsaDownloadResponsePojo header : chunk) {
                     Row row = sheet.createRow(rowNum++);
                     populateSheetRow(row, header);
                 }
@@ -74,37 +74,55 @@ public class SwiftMessageExportService {
      * Create header row
      */
     private void createHeaderRow(Sheet sheet) {
+        String[] headers = {
+            "SerialNo",
+            "Identifier",
+            "Sender",
+            "Receiver",
+            "Message Type",
+            "Reference No",
+            "Related Ref No",
+            "Send/Rec Date",
+            "Send/Rec Time",
+            "ValueDate",
+            "Currency",
+            "Amount",
+            "M_Text",
+            "M_History",
+            "File Type A/N",
+            "Send-Rec DateTime",
+            "Unit",
+            "MIR/MOR"
+        };
+
         Row headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("Message Id");
-        headerRow.createCell(1).setCellValue("Sender");
-        headerRow.createCell(2).setCellValue("Receiver");
-        headerRow.createCell(3).setCellValue("Currency");
-        headerRow.createCell(4).setCellValue("Inp Out");
-        headerRow.createCell(5).setCellValue("UETR");
-        headerRow.createCell(6).setCellValue("File Date");
-        headerRow.createCell(7).setCellValue("File Type");
-        headerRow.createCell(8).setCellValue("Message Type");
-        headerRow.createCell(9).setCellValue("Transaction Ref");
-        headerRow.createCell(10).setCellValue("File Name");
-        headerRow.createCell(11).setCellValue("Transaction Amount");
+        for (int i = 0; i < headers.length; i++) {
+            headerRow.createCell(i).setCellValue(headers[i]);
+        }
     }
 
     /**
-     * Populate a row with SwiftMessageHeaderPojo data
+     * Populate a row with SmsaDownloadResponsePojo data
      */
-    private void populateSheetRow(Row row, SwiftMessageHeaderPojo h) {
-        row.createCell(0).setCellValue(safeLong(h.getMessageId()));
-        row.createCell(1).setCellValue(safe(h.getSenderBic()));
-        row.createCell(2).setCellValue(safe(h.getReceiverBic()));
-        row.createCell(3).setCellValue(safe(h.getCurrency()));
-        row.createCell(4).setCellValue(safe(h.getInpOut()));
-        row.createCell(5).setCellValue(safe(h.getUetr()));
-        row.createCell(6).setCellValue(safe(h.getFileDate()));
-        row.createCell(7).setCellValue(safe(h.getFileType()));
-        row.createCell(8).setCellValue(safe(h.getMsgType()));
-        row.createCell(9).setCellValue(safe(h.getTransactionRef()));
-        row.createCell(10).setCellValue(safe(h.getFileName()));
+    private void populateSheetRow(Row row, SmsaDownloadResponsePojo h) {
+        row.createCell(0).setCellValue(1);
+        row.createCell(1).setCellValue(safe(h.getInpOut()));
+        row.createCell(2).setCellValue(safe(h.getSenderBic()));
+        row.createCell(3).setCellValue(safe(h.getReceiverBic()));
+        row.createCell(4).setCellValue(safe(h.getMsgType()));
+        row.createCell(5).setCellValue(safe(h.getTransactionRef()));
+        row.createCell(6).setCellValue(safe(h.getTransactionRelatedRefNo()));
+        row.createCell(7).setCellValue(safe(h.getFileDate()));
+        row.createCell(8).setCellValue(safe(h.getFileTime()));
+        row.createCell(9).setCellValue(" ");
+        row.createCell(10).setCellValue(safe(h.getCurrency()));
         row.createCell(11).setCellValue(safe(h.getTransactionAmount()));
+        row.createCell(12).setCellValue(safe(h.getmText()));
+        row.createCell(13).setCellValue("");
+        row.createCell(14).setCellValue(safe(h.getFileType()));
+        row.createCell(15).setCellValue(safe(h.getFileDate() + "," + h.getFileTime()));
+        row.createCell(16).setCellValue(" ");
+        row.createCell(17).setCellValue(safe(h.getMiorRef()));
     }
 
     private String safe(Object obj) {
