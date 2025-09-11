@@ -7,16 +7,16 @@ package com.smsa.Service;
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.entity.SwiftMessageHeader;
-import java.io.IOException;
+import java.io.BufferedReader;
 import java.io.Reader;
 import java.sql.Clob;
-import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
@@ -25,6 +25,7 @@ import javax.persistence.criteria.CriteriaQuery;
 import javax.persistence.criteria.Order;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import javax.transaction.Transactional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,8 @@ public class SmsaDownloadService {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    private static final int BATCH_SIZE = 50000; // safer than 1L, can tune later
 
     public List<SmsaDownloadResponsePojo> filterDownloadData(SwiftMessageHeaderFilterPojo filter) {
         List<SmsaDownloadResponsePojo> resultList = new ArrayList<>();
@@ -130,79 +133,57 @@ public class SmsaDownloadService {
         return resultList;
     }
 
+    @Transactional
     public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
+        Map<Long, String> result = new HashMap<>();
+
         if (messageIds == null || messageIds.isEmpty()) {
-            logger.warn("⚠️ messageIds list is empty, returning empty map");
-            return Collections.emptyMap();
+            return result;
         }
 
-        try {
-            logger.info("➡️ Truncating temp_message_ids table...");
-            jdbcTemplate.update("TRUNCATE TABLE temp_message_ids");
-            logger.info("✅ temp_message_ids table truncated successfully");
+        // Step 1: Truncate temp table (if you’re using a temp table approach)
+        jdbcTemplate.execute("TRUNCATE TABLE temp_message_ids");
 
-            // Batch insert
-            int batchSize = 100_000; // can tune to 50k, 100k based on memory
-            int total = messageIds.size();
-            logger.info("➡️ Inserting {} IDs into temp_message_ids in batches of {}", total, batchSize);
-
-            for (int i = 0; i < total; i += batchSize) {
-                List<Long> batch = messageIds.subList(i, Math.min(i + batchSize, total));
-                int start = i + 1;
-                int end = i + batch.size();
-                logger.info("➡️ Inserting batch {} - {} (size: {})", start, end, batch.size());
-
-                jdbcTemplate.batchUpdate("INSERT INTO temp_message_ids (message_id) VALUES (?)",
-                        batch,
-                        batch.size(),
-                        (ps, id) -> ps.setLong(1, id));
-
-                logger.info("✅ Inserted batch {} - {}", start, end);
-            }
-
-            logger.info("✅ All IDs inserted into temp_message_ids");
-
-            // Fetch messages
-            String sql = "SELECT i.SMSA_MESSAGE_ID, "
-                    + "CAST(i.SMSA_INST_RAW AS VARCHAR(4000)), "
-                    + "CAST(h.SMSA_HDR_TEXT AS VARCHAR(4000)), "
-                    + "CAST(t.SMSA_MSG_RAW AS VARCHAR(4000)), "
-                    + "CAST(tr.SMSA_TRL_RAW AS VARCHAR(4000)) "
-                    + "FROM SMSA_INST_TXT i "
-                    + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
-                    + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
-                    + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
-                    + "JOIN temp_message_ids tmp ON i.SMSA_MESSAGE_ID = tmp.message_id";
-
-            logger.info("➡️ Executing join query with temp_message_ids");
-            List<Object[]> results = entityManager.createNativeQuery(sql).getResultList();
-            logger.info("✅ Join query returned {} rows", results.size());
-
-            Map<Long, String> msgText = new HashMap<>();
-            for (Object[] row : results) {
-                Long id = ((Number) row[0]).longValue();
-
-                // Convert while connection is alive
-                String instRaw = clobToString(row[1]);
-                String hdrText = clobToString(row[2]);
-                String msgRaw = clobToString(row[3]);
-                String trlRaw = clobToString(row[4]);
-
-                msgText.put(id,
-                        (instRaw == null ? "" : instRaw) + "\n"
-                        + (hdrText == null ? "" : hdrText) + "\n"
-                        + (msgRaw == null ? "" : msgRaw) + "\n"
-                        + (trlRaw == null ? "" : trlRaw)
-                );
-            }
-
-            logger.info("✅ Processed {} message texts", msgText.size());
-            return msgText;
-
-        } catch (Exception e) {
-            logger.error("❌ Exception in getMessagesByIds", e);
-            throw e;
+        // Step 2: Insert message IDs in batches
+        for (int i = 0; i < messageIds.size(); i += BATCH_SIZE) {
+            List<Long> batch = messageIds.subList(i, Math.min(i + BATCH_SIZE, messageIds.size()));
+            jdbcTemplate.batchUpdate("INSERT INTO temp_message_ids (id) VALUES (?)",
+                    batch,
+                    BATCH_SIZE,
+                    (ps, id) -> ps.setLong(1, id));
         }
+
+        // Step 3: Query with JOINs, fetch LOBs as-is (no CAST)
+        String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
+                + "       h.SMSA_HDR_TEXT, "
+                + "       t.SMSA_MSG_RAW, "
+                + "       tr.SMSA_TRL_RAW "
+                + "FROM SMSA_INST_TXT i "
+                + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
+                + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
+                + "LEFT JOIN SMSA_TRL_TXT tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
+                + "JOIN temp_message_ids tmp ON i.SMSA_MESSAGE_ID = tmp.id";
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = entityManager.createNativeQuery(sql).getResultList();
+
+        // Step 4: Convert CLOBs safely
+        for (Object[] row : rows) {
+            Long messageId = ((Number) row[0]).longValue();
+
+            String instRaw = clobToString(row[1]);
+            String hdrText = clobToString(row[2]);
+            String msgRaw = clobToString(row[3]);
+            String trlRaw = clobToString(row[4]);
+
+            String finalMsg = Stream.of(instRaw, hdrText, msgRaw, trlRaw)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.joining("\n"));
+
+            result.put(messageId, finalMsg);
+        }
+
+        return result;
     }
 
     private String clobToString(Object clobObj) {
@@ -214,24 +195,12 @@ public class SmsaDownloadService {
         }
 
         if (clobObj instanceof Clob) {
-            Clob clob = (Clob) clobObj;
-            StringBuilder sb = new StringBuilder();
-            try (Reader reader = clob.getCharacterStream()) {
-                if (reader == null) {
-                    return "";
-                }
-                char[] buffer = new char[8192];
-                int charsRead;
-                while ((charsRead = reader.read(buffer)) != -1) {
-                    sb.append(buffer, 0, charsRead);
-                }
-            } catch (SQLException | IOException e) {
-                logger.error("❌ Failed to convert CLOB to String", e);
-                throw new RuntimeException("Failed to convert CLOB to String", e);
+            try (Reader reader = ((Clob) clobObj).getCharacterStream(); BufferedReader br = new BufferedReader(reader)) {
+                return br.lines().collect(Collectors.joining("\n"));
+            } catch (Exception e) {
+                throw new RuntimeException("Error reading CLOB", e);
             }
-            return sb.toString();
         }
-
         return clobObj.toString();
     }
 }
