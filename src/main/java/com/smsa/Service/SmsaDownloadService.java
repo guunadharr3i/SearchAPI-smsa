@@ -8,12 +8,14 @@ import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.entity.SwiftMessageHeader;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.Reader;
 import java.sql.Clob;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -94,22 +96,22 @@ public class SmsaDownloadService {
             TypedQuery<SmsaDownloadResponsePojo> typedQuery = entityManager.createQuery(query);
             typedQuery.setHint("org.hibernate.fetchSize", 5000);
             resultList = typedQuery.getResultList();
-            logger.info("Is mesageText enabled: "+filter.isWithMsgText());
+            logger.info("Is mesageText enabled: " + filter.isWithMsgText());
             if (filter.isWithMsgText()) {
                 List<Long> messageIds = resultList.stream()
                         .map(SmsaDownloadResponsePojo::getMessageId)
                         .collect(Collectors.toList());
                 Map<Long, String> msgTextMap = getMessagesByIds(messageIds);
                 resultList.forEach(pojo -> {
-                    String msgText = msgTextMap.get(pojo.getMessageId())==null?"":msgTextMap.get(pojo.getMessageId());
+                    String msgText = msgTextMap.get(pojo.getMessageId()) == null ? "" : msgTextMap.get(pojo.getMessageId());
                     pojo.setmText(msgText);
                 });
-                logger.info("result list size: "+resultList.size());
+                logger.info("result list size: " + resultList.size());
             }
 
         } catch (Exception e) {
             logger.error("Exception occured while fetching data pls check logs: " + e);
-            logger.info("Exception: "+e);
+            logger.info("Exception: " + e);
         }
         return resultList;
     }
@@ -138,9 +140,9 @@ public class SmsaDownloadService {
                             String msgRaw = clobToString(row[3]);
                             String trlRaw = clobToString(row[4]);
 
-                            return (instRaw == null ? "" : instRaw)+"\n"
-                            + (hdrText == null ? "" : hdrText)+"\n"
-                            + (msgRaw == null ? "" : msgRaw)+"\n"
+                            return (instRaw == null ? "" : instRaw) + "\n"
+                            + (hdrText == null ? "" : hdrText) + "\n"
+                            + (msgRaw == null ? "" : msgRaw) + "\n"
                             + (trlRaw == null ? "" : trlRaw);
                         },
                         (v1, v2) -> v1 // keep first if duplicate ID
@@ -155,23 +157,27 @@ public class SmsaDownloadService {
             return "";
         }
         if (clobObj instanceof String) {
-            return (String) clobObj; // already string
+            return (String) clobObj;
         }
+
         if (clobObj instanceof Clob) {
-            try {
-                Clob clob = (Clob) clobObj;
-                StringBuilder sb = new StringBuilder();
-                try (Reader reader = clob.getCharacterStream(); BufferedReader br = new BufferedReader(reader)) {
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        sb.append(line).append("\n");
-                    }
+            Clob clob = (Clob) clobObj;
+            StringBuilder sb = new StringBuilder();
+            try (Reader reader = clob.getCharacterStream()) {
+                if (reader == null) {
+                    return "";
                 }
-                return sb.toString().trim();
-            } catch (SQLException | java.io.IOException e) {
+                char[] buffer = new char[8192]; // read in 8KB chunks
+                int charsRead;
+                while ((charsRead = reader.read(buffer)) != -1) {
+                    sb.append(buffer, 0, charsRead);
+                }
+            } catch (SQLException | IOException e) {
                 throw new RuntimeException("Failed to convert CLOB to String", e);
             }
+            return sb.toString();
         }
+
         return clobObj.toString();
     }
 
