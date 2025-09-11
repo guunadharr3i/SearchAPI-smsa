@@ -13,6 +13,7 @@ import java.sql.Clob;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,7 +45,7 @@ public class SmsaDownloadService {
 
     @PersistenceContext
     private EntityManager entityManager;
-    
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -162,8 +163,11 @@ public class SmsaDownloadService {
             logger.info("✅ All IDs inserted into temp_message_ids");
 
             // Fetch messages
-            String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
-                    + "h.SMSA_HDR_TEXT, t.SMSA_MSG_RAW, tr.SMSA_TRL_RAW "
+            String sql = "SELECT i.SMSA_MESSAGE_ID, "
+                    + "CAST(i.SMSA_INST_RAW AS VARCHAR(4000)), "
+                    + "CAST(h.SMSA_HDR_TEXT AS VARCHAR(4000)), "
+                    + "CAST(t.SMSA_MSG_RAW AS VARCHAR(4000)), "
+                    + "CAST(tr.SMSA_TRL_RAW AS VARCHAR(4000)) "
                     + "FROM SMSA_INST_TXT i "
                     + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
                     + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
@@ -174,22 +178,23 @@ public class SmsaDownloadService {
             List<Object[]> results = entityManager.createNativeQuery(sql).getResultList();
             logger.info("✅ Join query returned {} rows", results.size());
 
-            // Process results
-            Map<Long, String> msgText = results.stream()
-                    .collect(Collectors.toMap(
-                            row -> ((Number) row[0]).longValue(),
-                            row -> {
-                                String instRaw = clobToString(row[1]);
-                                String hdrText = clobToString(row[2]);
-                                String msgRaw = clobToString(row[3]);
-                                String trlRaw = clobToString(row[4]);
-                                return (instRaw == null ? "" : instRaw) + "\n"
-                                        + (hdrText == null ? "" : hdrText) + "\n"
-                                        + (msgRaw == null ? "" : msgRaw) + "\n"
-                                        + (trlRaw == null ? "" : trlRaw);
-                            },
-                            (v1, v2) -> v1
-                    ));
+            Map<Long, String> msgText = new HashMap<>();
+            for (Object[] row : results) {
+                Long id = ((Number) row[0]).longValue();
+
+                // Convert while connection is alive
+                String instRaw = clobToString(row[1]);
+                String hdrText = clobToString(row[2]);
+                String msgRaw = clobToString(row[3]);
+                String trlRaw = clobToString(row[4]);
+
+                msgText.put(id,
+                        (instRaw == null ? "" : instRaw) + "\n"
+                        + (hdrText == null ? "" : hdrText) + "\n"
+                        + (msgRaw == null ? "" : msgRaw) + "\n"
+                        + (trlRaw == null ? "" : trlRaw)
+                );
+            }
 
             logger.info("✅ Processed {} message texts", msgText.size());
             return msgText;
