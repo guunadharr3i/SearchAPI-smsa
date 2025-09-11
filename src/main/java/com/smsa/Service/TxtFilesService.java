@@ -14,8 +14,10 @@ import com.smsa.DTO.SmsaDownloadResponsePojo;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -44,12 +46,16 @@ public class TxtFilesService {
         File txtFile = new File(tempDirPath, "swift_messages_" + System.currentTimeMillis() + ".txt");
         logger.info("Creating file at: {}", txtFile.getAbsolutePath());
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(txtFile))) {
+        try (BufferedWriter writer = new BufferedWriter(
+                new OutputStreamWriter(new FileOutputStream(txtFile), StandardCharsets.UTF_8))) {
+
             for (SmsaDownloadResponsePojo header : records) {
                 logger.debug("Writing record with transactionRef: {}", header.getTransactionRef());
-                writer.write(formatRecord(header));
+                writeRecord(header, writer);
                 writer.newLine(); // extra space between records
+                writer.flush();   // flush periodically for safety
             }
+
             logger.info("Successfully wrote {} records to TXT file.", records.size());
         } catch (IOException e) {
             logger.error("Error occurred while writing Swift messages to TXT file.", e);
@@ -59,28 +65,21 @@ public class TxtFilesService {
         return txtFile;
     }
 
-    private String formatRecord(SmsaDownloadResponsePojo h) {
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
-
-        String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
-
-       StringBuilder sb = new StringBuilder();
-        sb.append("------------------------------------\n");
-        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
-        sb.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
-        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
-        sb.append("Text :- \n");
-        sb.append(h.getmText());
-        sb.append("\n\n\n");
-        return sb.toString();
-    }
-
-    private boolean notBlank(String s) {
-        return s != null && !s.trim().isEmpty();
+    /**
+     * Writes a single record directly to the writer (streaming).
+     */
+    private void writeRecord(SmsaDownloadResponsePojo h, BufferedWriter writer) throws IOException {
+        writer.write("------------------------------------\n");
+        writer.write("Identifier :- " + safe(h.getInpOut()) + "\n");
+        writer.write("Message Type :- " + safe(h.getMsgType()) + "\n");
+        writer.write("Sender :- " + safe(h.getSenderBic()) + "\n");
+        writer.write("Receiver :- " + safe(h.getReceiverBic()) + "\n");
+        writer.write("Send\\Receive Date :- " + safe(h.getFileDate()) + "\n");
+        writer.write("Send\\Receive Time :- " + safe(h.getFileTime()) + "\n");
+        writer.write("File Type :- " + safe(h.getFileType()) + "\n");
+        writer.write("Text :- \n");
+        writer.write(safe(h.getmText()));
+        writer.write("\n\n\n");
     }
 
     private String safe(Object o) {
@@ -118,4 +117,3 @@ public class TxtFilesService {
         return cleaned.toString();
     }
 }
-

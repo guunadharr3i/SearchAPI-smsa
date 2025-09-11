@@ -11,17 +11,16 @@ package com.smsa.Service;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 
+import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -34,12 +33,11 @@ public class SwiftMessageExportTxtService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportTxtService.class);
 
-
     @Autowired
     private SmsaDownloadService swiftMessageService;
 
     public File exportTxtZip(String baseDirPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
-        log.info("Starting export of SwiftMessageHeaders to TXT and ZIP format...");
+        log.info("Starting export of SwiftMessageHeaders directly into ZIP...");
 
         List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);
         if (records.isEmpty()) {
@@ -47,133 +45,71 @@ public class SwiftMessageExportTxtService {
             return null;
         }
 
-        File tempDir = prepareTempDirectory(baseDirPath, "txt_chunks");
+        File zipFile = new File(baseDirPath, "swift_txt_export.zip");
 
-        List<StringBuilder> chunks = splitIntoChunks(records, 1024 * 1024);
-        log.info("Divided data into {} text file chunks.", chunks.size());
+        try (FileOutputStream fos = new FileOutputStream(zipFile);
+             ZipOutputStream zos = new ZipOutputStream(fos, StandardCharsets.UTF_8)) {
 
-        List<File> txtFiles = writeChunksToTxtFiles(tempDir, chunks);
-        File zipFile = zipTextFiles(txtFiles, new File(baseDirPath, "swift_txt_export.zip"));
-        cleanUpTempFiles(txtFiles, tempDir);
+            int maxBytes = 1024 * 1024; // 1 MB per TXT file
+            int currentBytes = 0;
+            int fileIndex = 1;
+
+            ZipEntry entry = new ZipEntry("General_Search_Report_" + fileIndex + ".txt");
+            zos.putNextEntry(entry);
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(zos, StandardCharsets.UTF_8));
+
+            for (SmsaDownloadResponsePojo header : records) {
+                // Write record and calculate size on the fly
+                int writtenBytes = writeRecord(header, writer);
+
+                if (currentBytes + writtenBytes > maxBytes) {
+                    // close current entry
+                    writer.flush();
+                    zos.closeEntry();
+
+                    // start a new file in the zip
+                    fileIndex++;
+                    entry = new ZipEntry("General_Search_Report_" + fileIndex + ".txt");
+                    zos.putNextEntry(entry);
+                    writer = new BufferedWriter(new OutputStreamWriter(zos, StandardCharsets.UTF_8));
+
+                    currentBytes = 0;
+                }
+
+                writer.flush(); // ensure content is flushed before counting
+                currentBytes += writtenBytes;
+            }
+
+            writer.flush();
+            zos.closeEntry();
+        }
 
         log.info("Export completed successfully. ZIP at: {}", zipFile.getAbsolutePath());
         return zipFile;
     }
 
-    private File prepareTempDirectory(String baseDirPath, String folderName) {
-        File tempDir = new File(baseDirPath, folderName);
-        if (!tempDir.exists() && tempDir.mkdirs()) {
-            log.info("Created temporary directory: {}", tempDir.getAbsolutePath());
-        }
-        return tempDir;
-    }
+    /**
+     * Write a single record directly into the writer and return its byte size.
+     */
+    private int writeRecord(SmsaDownloadResponsePojo h, BufferedWriter writer) throws IOException {
+        StringBuilder temp = new StringBuilder();
 
-    private List<StringBuilder> splitIntoChunks(List<SmsaDownloadResponsePojo> records, int maxBytes) {
-        List<StringBuilder> chunks = new ArrayList<>();
-        StringBuilder currentChunk = new StringBuilder();
+        temp.append("------------------------------------\n");
+        temp.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
+        temp.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
+        temp.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
+        temp.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
+        temp.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
+        temp.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
+        temp.append("File Type :- ").append(safe(h.getFileType())).append("\n");
+        temp.append("Text :- \n");
+        temp.append(safe(h.getmText()));
+        temp.append("\n\n\n");
 
-        for (SmsaDownloadResponsePojo header : records) {
-            String formatted = formatRecord(header);
-            byte[] lineBytes = formatted.getBytes(StandardCharsets.UTF_8);
+        String record = temp.toString();
+        writer.write(record);
 
-            if (currentChunk.toString().getBytes(StandardCharsets.UTF_8).length + lineBytes.length > maxBytes) {
-                chunks.add(currentChunk);
-                currentChunk = new StringBuilder();
-            }
-
-            currentChunk.append(formatted).append("\n");
-        }
-
-        if (currentChunk.length() > 0) {
-            chunks.add(currentChunk);
-        }
-
-        return chunks;
-    }
-
-    private List<File> writeChunksToTxtFiles(File tempDir, List<StringBuilder> chunks) throws IOException {
-        List<File> txtFiles = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
-            File file = new File(tempDir, "General_Search_Report_" + (i + 1) + ".txt");
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                fos.write(chunks.get(i).toString().getBytes(StandardCharsets.UTF_8));
-                log.debug("Written chunk to file: {}", file.getName());
-                txtFiles.add(file);
-            }
-        }
-        return txtFiles;
-    }
-
-    private File zipTextFiles(List<File> txtFiles, File zipFile) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(zipFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
-
-            for (File file : txtFiles) {
-                try (FileInputStream fis = new FileInputStream(file)) {
-                    zos.putNextEntry(new ZipEntry(file.getName()));
-                    byte[] buffer = new byte[1024];
-                    int len;
-                    while ((len = fis.read(buffer)) > 0) {
-                        zos.write(buffer, 0, len);
-                    }
-                    zos.closeEntry();
-                    log.debug("Added {} to ZIP", file.getName());
-                }
-            }
-        }
-        return zipFile;
-    }
-
-    private void cleanUpTempFiles(List<File> files, File tempDir) {
-        for (File file : files) {
-            try {
-                Files.delete(file.toPath());
-            } catch (IOException e) {
-                log.warn("Failed to delete file: {}", file.getAbsolutePath(), e);
-            }
-        }
-        try {
-            Files.delete(tempDir.toPath());
-        } catch (IOException e) {
-            log.warn("Failed to delete temp directory: {}", tempDir.getAbsolutePath(), e);
-        }
-    }
-
-    private String formatRecord(SmsaDownloadResponsePojo h) {
-//        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy");
-//        DateTimeFormatter inputTimeParser = DateTimeFormatter.ofPattern("HHmmss");
-//        DateTimeFormatter outputTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-
-//        String dateStr = "";
-//        String timeStr = "";
-//
-//        if (h.getFileDate() != null) {
-//            dateStr = h.getFileDate().format(dateFormatter);
-//        }
-//
-////        if (h.getTime() != null && !h.getTime().isEmpty()) {
-////            try {
-////                LocalTime parsedTime = LocalTime.parse(h.getTime(), inputTimeParser);
-////                timeStr = parsedTime.format(outputTimeFormatter);
-////            } catch (DateTimeParseException e) {
-////                log.warn("Invalid time format '{}' for record ID {}. Using raw value.", h.getTime(), h.getMessageId());
-////                timeStr = h.getTime();
-////            }
-////        }
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("------------------------------------\n");
-        sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
-        sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
-        sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
-        sb.append("Receiver  :- ").append(safe(h.getReceiverBic())).append("\n");
-        sb.append("Send\\Receive Date :- ").append(safe(h.getFileDate())).append("\n");
-        sb.append("Send\\Receive Time :- ").append(safe(h.getFileTime())).append("\n");
-        sb.append("File Type :- ").append(safe(h.getFileType())).append("\n");
-        sb.append("Text :- \n");
-        sb.append(h.getmText());
-        sb.append("\n\n\n");
-       
-        return sb.toString();
+        return record.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private String safe(Object o) {
@@ -191,5 +127,4 @@ public class SwiftMessageExportTxtService {
         }
         return o.toString().replace("\n", " ").replace("\r", " ");
     }
-
 }
