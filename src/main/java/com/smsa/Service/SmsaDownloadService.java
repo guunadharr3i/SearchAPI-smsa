@@ -7,15 +7,14 @@ package com.smsa.Service;
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.entity.SwiftMessageHeader;
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.sql.Clob;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -28,6 +27,7 @@ import javax.persistence.criteria.Root;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -44,6 +44,9 @@ public class SmsaDownloadService {
 
     @PersistenceContext
     private EntityManager entityManager;
+    
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     public List<SmsaDownloadResponsePojo> filterDownloadData(SwiftMessageHeaderFilterPojo filter) {
         List<SmsaDownloadResponsePojo> resultList = new ArrayList<>();
@@ -117,24 +120,39 @@ public class SmsaDownloadService {
     }
 
     public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
+        if (messageIds == null || messageIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        // 1️⃣ Truncate temp table
+        jdbcTemplate.update("TRUNCATE TABLE temp_message_ids");
+
+        // 2️⃣ Batch insert IDs
+        int batchSize = 50000;
+        for (int i = 0; i < messageIds.size(); i += batchSize) {
+            List<Long> batch = messageIds.subList(i, Math.min(i + batchSize, messageIds.size()));
+            jdbcTemplate.batchUpdate("INSERT INTO temp_message_ids (message_id) VALUES (?)",
+                    batch,
+                    batch.size(),
+                    (ps, id) -> ps.setLong(1, id));
+        }
+
+        // 3️⃣ Fetch messages using EntityManager
         String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
-                + "       h.SMSA_HDR_TEXT, "
-                + "       t.SMSA_MSG_RAW, "
-                + "       tr.SMSA_TRL_RAW "
+                + "h.SMSA_HDR_TEXT, t.SMSA_MSG_RAW, tr.SMSA_TRL_RAW "
                 + "FROM SMSA_INST_TXT i "
                 + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
                 + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
                 + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
-                + "WHERE i.SMSA_MESSAGE_ID IN (:messageIds)";
+                + "JOIN temp_message_ids tmp ON i.SMSA_MESSAGE_ID = tmp.message_id";
 
-        List<Object[]> results = entityManager.createNativeQuery(sql)
-                .setParameter("messageIds", messageIds)
-                .getResultList();
+        List<Object[]> results = entityManager.createNativeQuery(sql).getResultList();
+
+        // 4️⃣ Process results
         Map<Long, String> msgText = results.stream()
                 .collect(Collectors.toMap(
-                        row -> ((Number) row[0]).longValue(), // key = MESSAGE_ID
+                        row -> ((Number) row[0]).longValue(),
                         row -> {
-                            // value = concatenated CLOB fields
                             String instRaw = clobToString(row[1]);
                             String hdrText = clobToString(row[2]);
                             String msgRaw = clobToString(row[3]);
@@ -145,14 +163,13 @@ public class SmsaDownloadService {
                             + (msgRaw == null ? "" : msgRaw) + "\n"
                             + (trlRaw == null ? "" : trlRaw);
                         },
-                        (v1, v2) -> v1 // keep first if duplicate ID
+                        (v1, v2) -> v1
                 ));
 
         return msgText;
-
     }
 
-    private String clobToString(Object clobObj) {
+    private String clobToString(Object clobObj)  {
         if (clobObj == null) {
             return "";
         }
@@ -162,21 +179,21 @@ public class SmsaDownloadService {
 
         if (clobObj instanceof Clob) {
             Clob clob = (Clob) clobObj;
-            StringBuilder sb = new StringBuilder();
-            try (Reader reader = clob.getCharacterStream()) {
+        StringBuilder sb = new StringBuilder();
+        try (Reader reader = clob.getCharacterStream()) {
                 if (reader == null) {
                     return "";
                 }
                 char[] buffer = new char[8192]; // read in 8KB chunks
-                int charsRead;
-                while ((charsRead = reader.read(buffer)) != -1) {
-                    sb.append(buffer, 0, charsRead);
-                }
+            int charsRead;
+            while ((charsRead = reader.read(buffer)) != -1) {
+                sb.append(buffer, 0, charsRead);
+            }
             } catch (SQLException | IOException e) {
                 throw new RuntimeException("Failed to convert CLOB to String", e);
-            }
-            return sb.toString();
         }
+        return sb.toString();
+    }
 
         return clobObj.toString();
     }
