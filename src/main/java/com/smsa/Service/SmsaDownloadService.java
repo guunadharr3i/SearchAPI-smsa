@@ -57,6 +57,7 @@ public class SmsaDownloadService {
     private static final int BATCH_SIZE = 50000; // safer than 1L, can tune later
 
     public List<SmsaDownloadResponsePojo> filterDownloadData(SwiftMessageHeaderFilterPojo filter) {
+        List<Predicate> predicates = new ArrayList<>();
         List<SmsaDownloadResponsePojo> resultList = new ArrayList<>();
         try {
             logger.info("➡️ Starting filterDownloadData with filter: {}", filter);
@@ -64,7 +65,7 @@ public class SmsaDownloadService {
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
             CriteriaQuery<SmsaDownloadResponsePojo> query = cb.createQuery(SmsaDownloadResponsePojo.class);
             Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
-            List<Predicate> predicates = mainService.buildDynamicPredicates(filter, cb, root);
+            predicates = mainService.buildDynamicPredicates(filter, cb, root);
 
             query.select(cb.construct(
                     SmsaDownloadResponsePojo.class,
@@ -117,7 +118,15 @@ public class SmsaDownloadService {
             if (filter.isWithMsgText()) {
                 logger.info("➡️ Fetching message text for {} records", resultList.size());
 
-                Map<Long, String> msgTextMap = getAllMessages();
+                Map<Long, String> msgTextMap;
+                if (predicates.isEmpty()) {
+                    msgTextMap = getAllMessages();
+                } else {
+                    List<Long> messageIds = resultList.stream()
+                            .map(SmsaDownloadResponsePojo::getMessageId)
+                            .collect(Collectors.toList());
+                    msgTextMap = getMessagesByIds(messageIds);
+                }
 
                 resultList.forEach(pojo -> {
                     String msgText = msgTextMap.getOrDefault(pojo.getMessageId(), "");
@@ -178,7 +187,7 @@ public class SmsaDownloadService {
 
             String finalMsg = Stream.of(instRaw, hdrText, msgRaw, trlRaw)
                     .filter(Objects::nonNull)
-                    .collect(Collectors.joining("\n"));
+                    .collect(Collectors.joining("\r\n"));
 
             result.put(messageId, finalMsg);
         }
