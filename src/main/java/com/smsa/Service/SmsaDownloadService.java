@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.persistence.EntityManager;
@@ -28,6 +29,9 @@ import javax.persistence.criteria.Root;
 import javax.transaction.Transactional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.hibernate.ScrollMode;
+import org.hibernate.ScrollableResults;
+import org.hibernate.Session;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -105,7 +109,7 @@ public class SmsaDownloadService {
 
             // Pagination + fetch
             TypedQuery<SmsaDownloadResponsePojo> typedQuery = entityManager.createQuery(query);
-            typedQuery.setHint("org.hibernate.fetchSize", 5000);
+            typedQuery.setHint("org.hibernate.fetchSize", 30000);
             resultList = typedQuery.getResultList();
             logger.info("✅ Retrieved {} records from SwiftMessageHeader", resultList.size());
 
@@ -113,11 +117,7 @@ public class SmsaDownloadService {
             if (filter.isWithMsgText()) {
                 logger.info("➡️ Fetching message text for {} records", resultList.size());
 
-                List<Long> messageIds = resultList.stream()
-                        .map(SmsaDownloadResponsePojo::getMessageId)
-                        .collect(Collectors.toList());
-
-                Map<Long, String> msgTextMap = getMessagesByIds(messageIds);
+                Map<Long, String> msgTextMap = getAllMessages();
 
                 resultList.forEach(pojo -> {
                     String msgText = msgTextMap.getOrDefault(pojo.getMessageId(), "");
@@ -186,6 +186,65 @@ public class SmsaDownloadService {
         return result;
     }
 
+    @Transactional
+    public Map<Long, String> getAllMessages() {
+        Map<Long, String> result = new ConcurrentHashMap<>(); // thread-safe
+        int batchSize = 30000; // larger batch per fetch
+        List<Object[]> batchList = new ArrayList<>(batchSize);
+
+        ScrollableResults scroll = entityManager.unwrap(Session.class)
+                .createNativeQuery(
+                        "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
+                        + "       h.SMSA_HDR_TEXT, "
+                        + "       t.SMSA_MSG_RAW, "
+                        + "       tr.SMSA_TRL_RAW "
+                        + "FROM SMSA_INST_TXT i "
+                        + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
+                        + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
+                        + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID"
+                )
+                .setFetchSize(batchSize)
+                .unwrap(org.hibernate.query.NativeQuery.class)
+                .scroll(ScrollMode.FORWARD_ONLY);
+
+        while (scroll.next()) {
+            batchList.add(scroll.get());
+
+            if (batchList.size() >= batchSize) {
+                processBatch(batchList, result);
+                batchList.clear();
+                entityManager.unwrap(Session.class).clear();
+            }
+        }
+
+        // process remaining rows
+        if (!batchList.isEmpty()) {
+            processBatch(batchList, result);
+            batchList.clear();
+        }
+
+        scroll.close();
+        return result;
+    }
+
+    private void processBatch(List<Object[]> batch, Map<Long, String> result) {
+        // Parallel processing
+        batch.parallelStream().forEach(row -> {
+            Long messageId = ((Number) row[0]).longValue();
+            String instRaw = clobToString(row[1]);
+            String hdrText = clobToString(row[2]);
+            String msgRaw = clobToString(row[3]);
+            String trlRaw = clobToString(row[4]);
+
+            String finalMsg = Stream.of(instRaw, hdrText, msgRaw, trlRaw)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.joining("\r\n"));
+
+            result.put(messageId, finalMsg);
+        });
+    }
+
+// Helper method to convert CLOB to String
     private String clobToString(Object clobObj) {
         if (clobObj == null) {
             return "";
