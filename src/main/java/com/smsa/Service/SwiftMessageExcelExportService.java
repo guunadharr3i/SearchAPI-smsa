@@ -2,17 +2,16 @@ package com.smsa.Service;
 
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import com.smsa.DTO.SmsaDownloadResponsePojo;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;   // <— switched
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;   // For .xls
 import org.apache.poi.ss.usermodel.*;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
-import org.apache.logging.log4j.Logger;
 
 @Service
 public class SwiftMessageExcelExportService {
@@ -33,20 +32,21 @@ public class SwiftMessageExcelExportService {
             log.warn("No SwiftMessageHeader records found. Returning empty Excel.");
         }
 
-        // --- HSSFWorkbook instead of XSSFWorkbook ---
-        try (Workbook workbook = new HSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+        try (Workbook workbook = new HSSFWorkbook(); 
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
 
             Sheet sheet = workbook.createSheet("Swift Headers");
-            createHeaderRow(sheet);
+            String[] headersRow = createHeaderRow(sheet);
 
             int rowNum = 1;
+            int serialNo = 1;
             for (SmsaDownloadResponsePojo h : headers) {
                 Row row = sheet.createRow(rowNum++);
-                populateSheetRow(row, h);
+                populateSheetRow(row, h, serialNo++);
             }
 
-            // Adjust column widths (you can trim 34 if you have fewer columns)
-            for (int col = 0; col < 34; col++) {
+            // Auto-size columns only up to headers length
+            for (int col = 0; col < headersRow.length; col++) {
                 sheet.autoSizeColumn(col);
             }
 
@@ -57,7 +57,7 @@ public class SwiftMessageExcelExportService {
     }
 
     // ---------- helpers -----------------------------------------------------
-    private void createHeaderRow(Sheet sheet) {
+    private String[] createHeaderRow(Sheet sheet) {
         String[] headers = {
             "SerialNo",
             "Identifier",
@@ -83,10 +83,11 @@ public class SwiftMessageExcelExportService {
         for (int i = 0; i < headers.length; i++) {
             headerRow.createCell(i).setCellValue(headers[i]);
         }
+        return headers;
     }
 
-    private void populateSheetRow(Row row, SmsaDownloadResponsePojo h) {
-        row.createCell(0).setCellValue(1);
+    private void populateSheetRow(Row row, SmsaDownloadResponsePojo h, int serialNo) {
+        row.createCell(0).setCellValue(serialNo);
         row.createCell(1).setCellValue(safe(h.getInpOut()));
         row.createCell(2).setCellValue(safe(h.getSenderBic()));
         row.createCell(3).setCellValue(safe(h.getReceiverBic()));
@@ -95,27 +96,19 @@ public class SwiftMessageExcelExportService {
         row.createCell(6).setCellValue(safe(h.getTransactionRelatedRefNo()));
         row.createCell(7).setCellValue(safe(h.getFileDate()));
         row.createCell(8).setCellValue(safe(h.getFileTime()));
-        row.createCell(9).setCellValue(" ");
+        row.createCell(9).setCellValue(""); // ValueDate placeholder
         row.createCell(10).setCellValue(safe(h.getCurrency()));
         row.createCell(11).setCellValue(safe(h.getTransactionAmount()));
         row.createCell(12).setCellValue(safe(h.getmText()));
-        row.createCell(13).setCellValue("");
+        row.createCell(13).setCellValue(""); // M_History placeholder
         row.createCell(14).setCellValue(safe(h.getFileType()));
         row.createCell(15).setCellValue(safe(h.getFileDate() + "," + h.getFileTime()));
-        row.createCell(16).setCellValue(" ");
+        row.createCell(16).setCellValue(""); // Unit placeholder
         row.createCell(17).setCellValue(safe(h.getMiorRef()));
     }
 
     // ---------- utility -----------------------------------------------------
     private String safe(Object obj) {
         return obj == null ? "" : obj.toString();
-    }
-
-    private String safeInt(Integer i) {
-        return i == null ? "" : i.toString();
-    }
-
-    private String safeLong(Long l) {
-        return l == null ? "" : l.toString();
     }
 }
