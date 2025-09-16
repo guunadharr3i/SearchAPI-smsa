@@ -40,8 +40,8 @@ public class SwiftMessageExportPdfService {
         if (records == null || records.isEmpty()) {
             logger.warn("No records found to export to PDF.");
             return null;
-        }else{
-            logger.info("withtext Enabled: "+filters.isWithMsgText()+" size of records: "+records.size()+" is messageText is empty: "+records.get(0).getmText().isEmpty());
+        } else {
+            logger.info("withtext Enabled: " + filters.isWithMsgText() + " size of records: " + records.size() + " is messageText is empty: " + records.get(0).getmText().isEmpty());
         }
 
         File pdfFile = new File(tempDirPath, "swift_messages_" + System.currentTimeMillis() + ".pdf");
@@ -66,6 +66,9 @@ public class SwiftMessageExportPdfService {
                 String[] lines = formatRecord(record).split("\n");
 
                 for (String line : lines) {
+                    // Remove carriage returns or any non-printable characters
+                    String safeLine = line.replace("\r", "").replaceAll("\\p{Cntrl}", " ");
+
                     if (yPosition <= margin + leading) {
                         content.endText();
                         content.close();
@@ -80,7 +83,7 @@ public class SwiftMessageExportPdfService {
                         content.newLineAtOffset(margin, yPosition);
                     }
 
-                    content.showText(line);
+                    content.showText(safeLine);
                     content.newLine();
                     yPosition -= leading;
                 }
@@ -111,7 +114,7 @@ public class SwiftMessageExportPdfService {
         String dateStr = (h.getFileDate() != null) ? h.getFileDate().format(dateFormatter) : "";
 
         StringBuilder sb = new StringBuilder();
-         sb.append("------------------------------------\n");
+        sb.append("------------------------------------\n");
         sb.append("Identifier :- ").append(safe(h.getInpOut())).append("\n");
         sb.append("Message Type :- ").append(safe(h.getMsgType())).append("\n");
         sb.append("Sender :- ").append(safe(h.getSenderBic())).append("\n");
