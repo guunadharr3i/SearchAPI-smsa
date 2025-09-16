@@ -11,7 +11,6 @@ import java.io.BufferedReader;
 import java.io.Reader;
 import java.sql.Clob;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +31,7 @@ import org.apache.logging.log4j.Logger;
 import org.hibernate.ScrollMode;
 import org.hibernate.ScrollableResults;
 import org.hibernate.Session;
+import org.hibernate.query.NativeQuery;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -137,73 +137,10 @@ public class SmsaDownloadService {
             }
 
         } catch (Exception e) {
-            logger.error("❌ Exception occurred in filterDownloadData", e.getStackTrace());
+            logger.error("❌ Exception occurred in filterDownloadData", e);
         }
         return resultList;
     }
-
-    @Transactional
-public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
-    Map<Long, String> result = new HashMap<>();
-
-    if (messageIds == null || messageIds.isEmpty()) {
-        return result;
-    }
-
-    // Process messageIds in chunks of 1000
-    final int BATCH_SIZE = 1000;
-    for (int i = 0; i < messageIds.size(); i += BATCH_SIZE) {
-        List<Long> batch = messageIds.subList(i, Math.min(i + BATCH_SIZE, messageIds.size()));
-
-        // Step 1: Build placeholders for IN clause
-        String placeholders = batch.stream()
-                .map(id -> "?")
-                .collect(Collectors.joining(","));
-
-        // Step 2: Build SQL with IN clause
-        String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
-                + "       h.SMSA_HDR_TEXT, "
-                + "       t.SMSA_MSG_RAW, "
-                + "       tr.SMSA_TRL_RAW "
-                + "FROM SMSA_INST_TXT i "
-                + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
-                + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
-                + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
-                + "WHERE i.SMSA_MESSAGE_ID IN (" + placeholders + ")";
-
-        // Step 3: Run query
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = entityManager.createNativeQuery(sql)
-                .setParameter(1, batch.get(0)) // need to set dynamically
-                .getResultList();
-
-        // Better: use Query with positional parameters
-        javax.persistence.Query query = entityManager.createNativeQuery(sql);
-        for (int j = 0; j < batch.size(); j++) {
-            query.setParameter(j + 1, batch.get(j));
-        }
-        rows = query.getResultList();
-
-        // Step 4: Convert CLOBs
-        for (Object[] row : rows) {
-            Long messageId = ((Number) row[0]).longValue();
-
-            String instRaw = clobToString(row[1]);
-            String hdrText = clobToString(row[2]);
-            String msgRaw = clobToString(row[3]);
-            String trlRaw = clobToString(row[4]);
-
-            String finalMsg = Stream.of(instRaw, hdrText, msgRaw, trlRaw)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.joining("\r\n"));
-
-            result.put(messageId, finalMsg);
-        }
-    }
-
-    return result;
-}
-
 
     @Transactional
     public Map<Long, String> getAllMessages() {
@@ -261,6 +198,62 @@ public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
 
             result.put(messageId, finalMsg);
         });
+    }
+
+    @Transactional
+    public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
+        Map<Long, String> result = new ConcurrentHashMap<>();
+
+        if (messageIds == null || messageIds.isEmpty()) {
+            return result;
+        }
+
+        final int IN_CLAUSE_BATCH = 1000;   // Oracle IN clause limit
+        final int FETCH_BATCH = 30000;      // fetch rows in chunks
+
+        for (int i = 0; i < messageIds.size(); i += IN_CLAUSE_BATCH) {
+            List<Long> batchIds = messageIds.subList(i, Math.min(i + IN_CLAUSE_BATCH, messageIds.size()));
+
+            String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
+                    + "       h.SMSA_HDR_TEXT, "
+                    + "       t.SMSA_MSG_RAW, "
+                    + "       tr.SMSA_TRL_RAW "
+                    + "FROM SMSA_INST_TXT i "
+                    + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
+                    + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
+                    + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
+                    + "WHERE i.SMSA_MESSAGE_ID IN (:ids)";
+
+            // Create scrollable native query
+            NativeQuery<?> nativeQuery = entityManager.unwrap(Session.class)
+                    .createNativeQuery(sql)
+                    .setFetchSize(FETCH_BATCH)
+                    .unwrap(NativeQuery.class);
+
+            // Bind the list of IDs
+            nativeQuery.setParameter("ids", batchIds);
+
+            ScrollableResults scroll = nativeQuery.scroll(ScrollMode.FORWARD_ONLY);
+
+            List<Object[]> batchList = new ArrayList<>(FETCH_BATCH);
+            while (scroll.next()) {
+                batchList.add((Object[]) scroll.get());
+                if (batchList.size() >= FETCH_BATCH) {
+                    processBatch(batchList, result);
+                    batchList.clear();
+                    entityManager.unwrap(Session.class).clear(); // free memory
+                }
+            }
+
+            if (!batchList.isEmpty()) {
+                processBatch(batchList, result);
+                batchList.clear();
+            }
+
+            scroll.close();
+        }
+
+        return result;
     }
 
 // Helper method to convert CLOB to String
