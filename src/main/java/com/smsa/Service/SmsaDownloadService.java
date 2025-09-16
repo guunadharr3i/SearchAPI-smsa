@@ -137,32 +137,30 @@ public class SmsaDownloadService {
             }
 
         } catch (Exception e) {
-            logger.error("❌ Exception occurred in filterDownloadData", e);
+            logger.error("❌ Exception occurred in filterDownloadData", e.getStackTrace());
         }
         return resultList;
     }
 
     @Transactional
-    public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
-        Map<Long, String> result = new HashMap<>();
+public Map<Long, String> getMessagesByIds(List<Long> messageIds) {
+    Map<Long, String> result = new HashMap<>();
 
-        if (messageIds == null || messageIds.isEmpty()) {
-            return result;
-        }
+    if (messageIds == null || messageIds.isEmpty()) {
+        return result;
+    }
 
-        // Step 1: Truncate temp table (if you’re using a temp table approach)
-        jdbcTemplate.execute("TRUNCATE TABLE temp_message_ids");
+    // Process messageIds in chunks of 1000
+    final int BATCH_SIZE = 1000;
+    for (int i = 0; i < messageIds.size(); i += BATCH_SIZE) {
+        List<Long> batch = messageIds.subList(i, Math.min(i + BATCH_SIZE, messageIds.size()));
 
-        // Step 2: Insert message IDs in batches
-        for (int i = 0; i < messageIds.size(); i += BATCH_SIZE) {
-            List<Long> batch = messageIds.subList(i, Math.min(i + BATCH_SIZE, messageIds.size()));
-            jdbcTemplate.batchUpdate("INSERT INTO temp_message_ids (id) VALUES (?)",
-                    batch,
-                    BATCH_SIZE,
-                    (ps, id) -> ps.setLong(1, id));
-        }
+        // Step 1: Build placeholders for IN clause
+        String placeholders = batch.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(","));
 
-        // Step 3: Query with JOINs, fetch LOBs as-is (no CAST)
+        // Step 2: Build SQL with IN clause
         String sql = "SELECT i.SMSA_MESSAGE_ID, i.SMSA_INST_RAW, "
                 + "       h.SMSA_HDR_TEXT, "
                 + "       t.SMSA_MSG_RAW, "
@@ -170,13 +168,23 @@ public class SmsaDownloadService {
                 + "FROM SMSA_INST_TXT i "
                 + "LEFT JOIN SMSA_PRT_MESSAGE_HDR h ON i.SMSA_MESSAGE_ID = h.SMSA_MESSAGE_ID "
                 + "LEFT JOIN SMSA_MSG_TXT t ON i.SMSA_MESSAGE_ID = t.SMSA_MESSAGE_ID "
-                + "LEFT JOIN SMSA_TRL_TXT tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
-                + "JOIN temp_message_ids tmp ON i.SMSA_MESSAGE_ID = tmp.id";
+                + "LEFT JOIN SMSA_MSG_TRL tr ON i.SMSA_MESSAGE_ID = tr.SMSA_MESSAGE_ID "
+                + "WHERE i.SMSA_MESSAGE_ID IN (" + placeholders + ")";
 
+        // Step 3: Run query
         @SuppressWarnings("unchecked")
-        List<Object[]> rows = entityManager.createNativeQuery(sql).getResultList();
+        List<Object[]> rows = entityManager.createNativeQuery(sql)
+                .setParameter(1, batch.get(0)) // need to set dynamically
+                .getResultList();
 
-        // Step 4: Convert CLOBs safely
+        // Better: use Query with positional parameters
+        javax.persistence.Query query = entityManager.createNativeQuery(sql);
+        for (int j = 0; j < batch.size(); j++) {
+            query.setParameter(j + 1, batch.get(j));
+        }
+        rows = query.getResultList();
+
+        // Step 4: Convert CLOBs
         for (Object[] row : rows) {
             Long messageId = ((Number) row[0]).longValue();
 
@@ -191,9 +199,11 @@ public class SmsaDownloadService {
 
             result.put(messageId, finalMsg);
         }
-
-        return result;
     }
+
+    return result;
+}
+
 
     @Transactional
     public Map<Long, String> getAllMessages() {
