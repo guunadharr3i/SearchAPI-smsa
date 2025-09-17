@@ -42,6 +42,7 @@ public class SwiftMessageHeaderFilterPojo {
     private String rawMessageData;
     private String transactionRelatedRefNo;
     private boolean withMsgText=false;
+    private List<String> geoId;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -384,6 +385,20 @@ public class SwiftMessageHeaderFilterPojo {
      */
     public void setWithMsgText(boolean withMsgText) {
         this.withMsgText = withMsgText;
+    }
+
+    /**
+     * @return the geoId
+     */
+    public List<String> getGeoId() {
+        return geoId;
+    }
+
+    /**
+     * @param geoId the geoId to set
+     */
+    public void setGeoId(List<String> geoId) {
+        this.geoId = geoId;
     }
 
 }
