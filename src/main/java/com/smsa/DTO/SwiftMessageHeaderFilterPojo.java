@@ -43,6 +43,9 @@ public class SwiftMessageHeaderFilterPojo {
     private String transactionRelatedRefNo;
     private boolean withMsgText=false;
     private List<String> geoId;
+    private String reportType;
+    private String fircoSoftReportStatus;
+    private List<String> fircoSoftStatus;
 
     // Getters and Setters
     public List<Long> getMessageId() {
@@ -400,5 +403,49 @@ public class SwiftMessageHeaderFilterPojo {
     public void setGeoId(List<String> geoId) {
         this.geoId = geoId;
     }
+
+    /**
+     * @return the reportType
+     */
+    public String getReportType() {
+        return reportType;
+    }
+
+    /**
+     * @param reportType the reportType to set
+     */
+    public void setReportType(String reportType) {
+        this.reportType = reportType;
+    }
+
+    /**
+     * @return the fircoSoftStatus
+     */
+    public List<String> getFircoSoftStatus() {
+        return fircoSoftStatus;
+    }
+
+    /**
+     * @param fircoSoftStatus the fircoSoftStatus to set
+     */
+    public void setFircoSoftStatus(List<String> fircoSoftStatus) {
+        this.fircoSoftStatus = fircoSoftStatus;
+    }
+
+    /**
+     * @return the fircoSoftReportStatus
+     */
+    public String getFircoSoftReportStatus() {
+        return fircoSoftReportStatus;
+    }
+
+    /**
+     * @param fircoSoftReportStatus the fircoSoftReportStatus to set
+     */
+    public void setFircoSoftReportStatus(String fircoSoftReportStatus) {
+        this.fircoSoftReportStatus = fircoSoftReportStatus;
+    }
+
+
 
 }

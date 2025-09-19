@@ -25,8 +25,9 @@ public class SwiftMessageHeaderPojo {
     private String transactionRef;
     private String fileName;
     private String transactionRelatedRefNo;
+    private String fircoSoftStatus;
+    private String message2ndCopyDate;
     private String rawTxt;
-    
 
     public SwiftMessageHeaderPojo() {
     }
@@ -46,8 +47,9 @@ public class SwiftMessageHeaderPojo {
             String transactionRef,
             String fileName,
             String transactionRelatedRefNo,
+            String fircoSoftStatus,
+            String message2ndCopyDate,
             String rawTxt
-            
     ) {
         this.messageId = messageId;
         this.senderBic = senderBic;
@@ -62,7 +64,9 @@ public class SwiftMessageHeaderPojo {
         this.transactionRef = transactionRef;
         this.fileName = fileName;
         this.rawTxt = rawTxt;
-        this.transactionRelatedRefNo=transactionRelatedRefNo;
+        this.transactionRelatedRefNo = transactionRelatedRefNo;
+        this.fircoSoftStatus = fircoSoftStatus;
+        this.message2ndCopyDate = message2ndCopyDate;
     }
 
     /**
@@ -233,8 +237,6 @@ public class SwiftMessageHeaderPojo {
         this.fileName = fileName;
     }
 
- 
-
     /**
      * @return the transactionRelatedRefNo
      */
@@ -261,6 +263,34 @@ public class SwiftMessageHeaderPojo {
      */
     public void setRawTxt(String rawTxt) {
         this.rawTxt = rawTxt;
+    }
+
+    /**
+     * @return the fircoSoftStatus
+     */
+    public String getFircoSoftStatus() {
+        return fircoSoftStatus;
+    }
+
+    /**
+     * @param fircoSoftStatus the fircoSoftStatus to set
+     */
+    public void setFircoSoftStatus(String fircoSoftStatus) {
+        this.fircoSoftStatus = fircoSoftStatus;
+    }
+
+    /**
+     * @return the message2ndCopyDate
+     */
+    public String getMessage2ndCopyDate() {
+        return message2ndCopyDate;
+    }
+
+    /**
+     * @param message2ndCopyDate the message2ndCopyDate to set
+     */
+    public void setMessage2ndCopyDate(String message2ndCopyDate) {
+        this.message2ndCopyDate = message2ndCopyDate;
     }
 
 }
