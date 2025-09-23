@@ -51,8 +51,6 @@ public class SmsaDownloadService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
 
     private static final int BATCH_SIZE = 50000; // safer than 1L, can tune later
 

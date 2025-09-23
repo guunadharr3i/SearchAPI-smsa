@@ -1,9 +1,8 @@
 package com.smsa.Service;
 
+import com.aspose.cells.*;
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;   // For .xls
-import org.apache.poi.ss.usermodel.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,96 +14,90 @@ import java.util.List;
 
 @Service
 public class SwiftMessageExcelExportService {
-
+    
     private static final Logger log = LogManager.getLogger(SwiftMessageExcelExportService.class);
-
+    
     @Autowired
     private SmsaDownloadService swiftMessageService;
 
     /**
-     * Generates a single .xls workbook (byte[]) with all filtered headers.
+     * Generates a single binary Excel (.xlsb) workbook with all filtered
+     * headers.
      */
     public byte[] exportSwiftHeadersToSingleExcel(SwiftMessageHeaderFilterPojo filters) throws IOException {
-        log.info("Starting SwiftMessageHeader single Excel export...");
-
+        log.info("Starting SwiftMessageHeader single Excel (.xlsb) export...");
+        
         List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);
         if (headers.isEmpty()) {
             log.warn("No SwiftMessageHeader records found. Returning empty Excel.");
         }
-
-        try (Workbook workbook = new HSSFWorkbook(); 
-             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-
-            Sheet sheet = workbook.createSheet("Swift Headers");
+        
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            
+            Workbook workbook = new Workbook(FileFormatType.XLSB);
+            Worksheet sheet = workbook.getWorksheets().get(0);
+            sheet.setName("Swift Headers");
+            
             String[] headersRow = createHeaderRow(sheet);
-
+            
             int rowNum = 1;
             int serialNo = 1;
             for (SmsaDownloadResponsePojo h : headers) {
-                Row row = sheet.createRow(rowNum++);
-                populateSheetRow(row, h, serialNo++);
+                populateSheetRow(sheet, rowNum++, h, serialNo++);
             }
 
-            // Auto-size columns only up to headers length
+            // Set column widths (instead of autoSize, which is slower)
             for (int col = 0; col < headersRow.length; col++) {
-                sheet.autoSizeColumn(col);
+                sheet.getCells().setColumnWidth(col, 20); // approx width
             }
-
-            workbook.write(out);
-            log.info("Excel generation completed with {} records.", headers.size());
+            
+            workbook.save(out, SaveFormat.XLSB);
+            log.info("Excel (.xlsb) generation completed with {} records.", headers.size());
             return out.toByteArray();
+        } catch (Exception ex) {
+            log.error("Exception occured :" + ex);
         }
+        return null;
     }
 
     // ---------- helpers -----------------------------------------------------
-    private String[] createHeaderRow(Sheet sheet) {
+    private String[] createHeaderRow(Worksheet sheet) {
         String[] headers = {
-            "SerialNo",
-            "Identifier",
-            "Sender",
-            "Receiver",
-            "Message Type",
-            "Reference No",
-            "Related Ref No",
-            "Send/Rec Date",
-            "Send/Rec Time",
-            "ValueDate",
-            "Currency",
-            "Amount",
-            "M_Text",
-            "M_History",
-            "File Type A/N",
-            "Send-Rec DateTime",
-            "Unit",
-            "MIR/MOR"
+            "SerialNo", "Identifier", "Sender", "Receiver", "Message Type",
+            "Reference No", "Related Ref No", "Send/Rec Date", "Send/Rec Time",
+            "ValueDate", "Currency", "Amount", "M_Text", "M_History",
+            "File Type A/N", "Send-Rec DateTime", "Unit", "MIR/MOR"
         };
-
-        Row headerRow = sheet.createRow(0);
+        
+        Cells cells = sheet.getCells();
         for (int i = 0; i < headers.length; i++) {
-            headerRow.createCell(i).setCellValue(headers[i]);
+            cells.get(0, i).putValue(headers[i]);
         }
+        
         return headers;
     }
-
-    private void populateSheetRow(Row row, SmsaDownloadResponsePojo h, int serialNo) {
-        row.createCell(0).setCellValue(serialNo);
-        row.createCell(1).setCellValue(safe(h.getInpOut()));
-        row.createCell(2).setCellValue(safe(h.getSenderBic()));
-        row.createCell(3).setCellValue(safe(h.getReceiverBic()));
-        row.createCell(4).setCellValue(safe(h.getMsgType()));
-        row.createCell(5).setCellValue(safe(h.getTransactionRef()));
-        row.createCell(6).setCellValue(safe(h.getTransactionRelatedRefNo()));
-        row.createCell(7).setCellValue(safe(h.getFileDate()));
-        row.createCell(8).setCellValue(safe(h.getFileTime()));
-        row.createCell(9).setCellValue(""); // ValueDate placeholder
-        row.createCell(10).setCellValue(safe(h.getCurrency()));
-        row.createCell(11).setCellValue(safe(h.getTransactionAmount()));
-        row.createCell(12).setCellValue(safe(h.getmText()));
-        row.createCell(13).setCellValue(""); // M_History placeholder
-        row.createCell(14).setCellValue(safe(h.getFileType()));
-        row.createCell(15).setCellValue(safe(h.getFileDate() + "," + h.getFileTime()));
-        row.createCell(16).setCellValue(""); // Unit placeholder
-        row.createCell(17).setCellValue(safe(h.getMiorRef()));
+    
+    private void populateSheetRow(Worksheet sheet, int rowNum, SmsaDownloadResponsePojo h, int serialNo) {
+        Cells cells = sheet.getCells();
+        int col = 0;
+        cells.get(rowNum, col++).putValue(serialNo);
+        cells.get(rowNum, col++).putValue(safe(h.getInpOut()));
+        cells.get(rowNum, col++).putValue(safe(h.getSenderBic()));
+        cells.get(rowNum, col++).putValue(safe(h.getReceiverBic()));
+        cells.get(rowNum, col++).putValue(safe(h.getMsgType()));
+        cells.get(rowNum, col++).putValue(safe(h.getTransactionRef()));
+        cells.get(rowNum, col++).putValue(safe(h.getTransactionRelatedRefNo()));
+        cells.get(rowNum, col++).putValue(safe(h.getFileDate()));
+        cells.get(rowNum, col++).putValue(safe(h.getFileTime()));
+        cells.get(rowNum, col++).putValue(""); // ValueDate placeholder
+        cells.get(rowNum, col++).putValue(safe(h.getCurrency()));
+        cells.get(rowNum, col++).putValue(safe(h.getTransactionAmount()));
+        cells.get(rowNum, col++).putValue(safe(h.getmText()));
+        cells.get(rowNum, col++).putValue(""); // M_History placeholder
+        cells.get(rowNum, col++).putValue(safe(h.getFileType()));
+        cells.get(rowNum, col++).putValue(safe(h.getFileDate() + "," + h.getFileTime()));
+        cells.get(rowNum, col++).putValue(""); // Unit placeholder
+        cells.get(rowNum, col++).putValue(safe(h.getMiorRef()));
     }
 
     // ---------- utility -----------------------------------------------------
