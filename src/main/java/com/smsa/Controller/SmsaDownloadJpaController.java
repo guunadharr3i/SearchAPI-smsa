@@ -382,13 +382,16 @@ public class SmsaDownloadJpaController {
                         .body(DownloadApiResponse.error(ApiResponseCode.FILE_NOT_FOUND));
             }
 
+            //  Proper headers for XLSB
             HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-            headers.setContentDispositionFormData("attachment", "swift_headers.xls");
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.ms-excel.sheet.binary.macroEnabled.12"));
+            headers.setContentDispositionFormData("attachment", "swift_headers.xlsb");
 
             return ResponseEntity.ok()
                     .headers(headers)
                     .body(excelData);
+
         } catch (Exception e) {
             logger.error("Failed to export Excel file", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
