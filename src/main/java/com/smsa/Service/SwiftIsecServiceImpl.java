@@ -2,8 +2,8 @@ package com.smsa.Service;
 
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
-import com.smsa.entity.SwiftMessageHeader;
-import com.smsa.repository.SwiftMessageHeaderRepository;
+import com.smsa.entity.SwiftMessageHeaderIsec;
+import com.smsa.repository.SwiftMessageHeaderIsecRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,13 +36,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
-@Service("smsa_service")
-public class SwiftMessageServiceImpl implements SwiftMessageService {
+@Service("isec_service")
+public class SwiftIsecServiceImpl implements SwiftMessageService {
     
-    private static final Logger logger = LogManager.getLogger(SwiftMessageServiceImpl.class);
+    private static final Logger logger = LogManager.getLogger(SwiftIsecServiceImpl.class);
     
     @Autowired
-    private SwiftMessageHeaderRepository repository;
+    private SwiftMessageHeaderIsecRepository repository;
     
     @PersistenceContext
     private EntityManager entityManager;
@@ -68,8 +68,8 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
             // ✅ FIRST QUERY: Get header data without CLOB
             CriteriaQuery<SwiftMessageHeaderPojo> query = cb.createQuery(SwiftMessageHeaderPojo.class);
-            Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
-            if (filter.getReportType().equals("Fircosoft Report")) {
+            Root<SwiftMessageHeaderIsec> root = query.from(SwiftMessageHeaderIsec.class);
+            if (filter.getReportType()!=null && filter.getReportType().equals("Fircosoft Report")) {
                 if (filter.getFircoSoftReportStatus() == null || filter.getFircoSoftReportStatus().isEmpty() || filter.getFircoSoftReportStatus().equalsIgnoreCase("ALL")) {
                     List<String> status = Arrays.asList("Pending", "Approved", "Rejected");
                     filter.setFircoSoftStatus(status);
@@ -138,7 +138,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 List<Long> messageIds = resultList.stream()
                         .map(SwiftMessageHeaderPojo::getMessageId)
                         .collect(Collectors.toList());
-                String jpq = "SELECT t.messageId,t.rawInstance from SwiftMessageInstance t where t.messageId IN :messageIds";
+                String jpq = "SELECT t.messageId,t.rawInstance from SwiftMessageInstanceIsec t where t.messageId IN :messageIds";
                 List<Object[]> instanceTexts = entityManager.createQuery(jpq, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
@@ -149,7 +149,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                                 row -> row[1].toString(),
                                 (v1, v2) -> v1
                         ));
-                String jpq2 = "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeader t where t.messageId IN :messageIds";
+                String jpq2 = "SELECT t.messageId,t.smsaHeaderText from SwiftMessageHeaderIsec t where t.messageId IN :messageIds";
                 List<Object[]> hdrTexts = entityManager.createQuery(jpq2, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
@@ -161,7 +161,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                                 (v1, v2) -> v1
                         ));
                 // Create a map of messageId -> messageText
-                String jpql = "SELECT t.messageId, t.raw_messageText FROM SwiftMessageText t WHERE t.messageId IN :messageIds";
+                String jpql = "SELECT t.messageId, t.raw_messageText FROM SwiftMessageTextIsec t WHERE t.messageId IN :messageIds";
                 List<Object[]> messageTexts = entityManager.createQuery(jpql, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
@@ -173,7 +173,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                                 row -> row[1].toString(),
                                 (v1, v2) -> v1
                         ));
-                String jpq3 = "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailer t where t.messageId IN :messageIds";
+                String jpq3 = "SELECT t.messageId,t.trailerRaw from SwiftMessageTrailerIsec t where t.messageId IN :messageIds";
                 List<Object[]> trailerTexts = entityManager.createQuery(jpq3, Object[].class)
                         .setParameter("messageIds", messageIds)
                         .getResultList();
@@ -195,7 +195,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
 
             // ✅ Count query (without CLOB join)
             CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
-            Root<SwiftMessageHeader> countRoot = countQuery.from(SwiftMessageHeader.class);
+            Root<SwiftMessageHeaderIsec> countRoot = countQuery.from(SwiftMessageHeaderIsec.class);
             List<Predicate> countPredicates = buildDynamicPredicates(filter, cb, countRoot);
             
             countQuery.select(cb.countDistinct(countRoot));
@@ -212,7 +212,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return new PageImpl<>(resultList, pageable, totalCount);
     }
     
-    public List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+    public List<Predicate> buildDynamicPredicates(SwiftMessageHeaderFilterPojo filter, CriteriaBuilder cb, Root<SwiftMessageHeaderIsec> root) {
         List<Predicate> predicates = new ArrayList<>();
         
         try {
@@ -265,7 +265,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return predicates;
     }
     
-    private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+    private Predicate buildPredicateForField(String fieldName, Object value, CriteriaBuilder cb, Root<SwiftMessageHeaderIsec> root) {
         if (fieldName.equals("fromTime") && value instanceof String) {
             return cb.greaterThanOrEqualTo(root.get("fileTime"), (String) value);
         }
@@ -302,7 +302,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return cb.equal(root.get(fieldName), value);
     }
     
-    private Predicate handleListPredicate(String fieldName, List<?> list, CriteriaBuilder cb, Root<SwiftMessageHeader> root) {
+    private Predicate handleListPredicate(String fieldName, List<?> list, CriteriaBuilder cb, Root<SwiftMessageHeaderIsec> root) {
         if (list.isEmpty()) {
             return null;
         }
@@ -325,9 +325,9 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         return root.get(fieldName).in(list);
     }
     
-    private SwiftMessageHeaderPojo mapToPojo(SwiftMessageHeader entity) {
+    private SwiftMessageHeaderPojo mapToPojo(SwiftMessageHeaderIsec entity) {
         SwiftMessageHeaderPojo pojo = new SwiftMessageHeaderPojo();
-        pojo.setMessageId(entity.getId());
+        pojo.setMessageId(entity.getMessageId());
         pojo.setFileName(entity.getFileName());
         pojo.setFileType(entity.getFileType());
         pojo.setInpOut(entity.getInpOut());
@@ -344,13 +344,13 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     
     @Override
     public List<SwiftMessageHeaderPojo> getFullData() {
-        logger.info("Fetching top 5 SwiftMessageHeader records by date");
+        logger.info("Fetching top 5 SwiftMessageHeaderIsec records by date");
         
         try {
-            List<SwiftMessageHeader> entities = repository.findTop5ByOrderByDateDesc();
+            List<SwiftMessageHeaderIsec> entities = repository.findTop5ByOrderByDateDesc();
             
             if (entities == null || entities.isEmpty()) {
-                logger.warn("No SwiftMessageHeader records found");
+                logger.warn("No SwiftMessageHeaderIsec records found");
                 return Collections.emptyList();
             }
             
@@ -363,14 +363,14 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             return pojos;
             
         } catch (Exception e) {
-            logger.error("Error while fetching or processing SwiftMessageHeader data", e);
+            logger.error("Error while fetching or processing SwiftMessageHeaderIsec data", e);
             return Collections.emptyList();
         }
     }
     
     public long totalRecords() {
         long count = repository.count();
-        logger.info("Total records in SwiftMessageHeader: {}", count);
+        logger.info("Total records in SwiftMessageHeaderIsec: {}", count);
         return count;
     }
     
@@ -408,8 +408,8 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
         try {
             CriteriaBuilder cb = entityManager.getCriteriaBuilder();
             
-            CriteriaQuery<SwiftMessageHeader> query = cb.createQuery(SwiftMessageHeader.class);
-            Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
+            CriteriaQuery<SwiftMessageHeaderIsec> query = cb.createQuery(SwiftMessageHeaderIsec.class);
+            Root<SwiftMessageHeaderIsec> root = query.from(SwiftMessageHeaderIsec.class);
             List<Predicate> predicates = buildDynamicPredicates(filters, cb, root);
             
             query.select(root).distinct(true);
@@ -417,13 +417,13 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
                 query.where(cb.and(predicates.toArray(new Predicate[0])));
             }
             
-            TypedQuery<SwiftMessageHeader> typedQuery = entityManager.createQuery(query);
+            TypedQuery<SwiftMessageHeaderIsec> typedQuery = entityManager.createQuery(query);
 
             // If using a relational DB, this helps JDBC layer.
             typedQuery.setHint("org.hibernate.fetchSize", 1000);
 
             // Stream processing — better memory usage
-            try (Stream<SwiftMessageHeader> stream = typedQuery.getResultList().stream()) {
+            try (Stream<SwiftMessageHeaderIsec> stream = typedQuery.getResultList().stream()) {
                 pojoList = stream
                         .map(this::mapToPojo)
                         .collect(Collectors.toList());
@@ -438,7 +438,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     
     @Override
     public List<SwiftMessageHeaderPojo> getTotalData() {
-        List<SwiftMessageHeader> resultList = repository.findAll();
+        List<SwiftMessageHeaderIsec> resultList = repository.findAll();
         List<SwiftMessageHeaderPojo> pojoList = resultList.stream()
                 .map(this::mapToPojo)
                 .collect(Collectors.toList());

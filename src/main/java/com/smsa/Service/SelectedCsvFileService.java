@@ -16,10 +16,7 @@ public class SelectedCsvFileService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SelectedCsvFileService.class);
 
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
-
-    public byte[] exportSwiftHeadersToCsv(SwiftMessageHeaderFilterPojo filters) {
+    public byte[] exportSwiftHeadersToCsv(SwiftMessageHeaderFilterPojo filters, SmsaDownloadService swiftMessageService) {
         log.info("Starting SwiftMessageHeader Pipe-delimited export...");
 
         List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);

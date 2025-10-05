@@ -24,7 +24,7 @@ public interface SwiftMessageService {
 
     public List<SwiftMessageHeaderPojo> getTotalData();
 
-    public List<String> getMessageTypes();
+    public List<String> getMessageTypes(List<String> geoIds);
     
     public List<String> getRawData(String transactionRef);
 

@@ -1,6 +1,5 @@
 package com.smsa.Service;
 
-import com.smsa.DTO.SmsaDownloadResponsePojo;
 import com.smsa.DTO.SwiftMessageHeaderFilterPojo;
 import com.smsa.DTO.SmsaDownloadResponsePojo;
 
@@ -16,7 +15,6 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.logging.log4j.LogManager;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,10 +23,8 @@ public class SwiftMessageCsvExportService {
     private static final org.apache.logging.log4j.Logger logger = LogManager
             .getLogger(SwiftMessageCsvExportService.class);
 
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
 
-    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
+    public String exportSwiftHeadersToZip(String folderPath, SwiftMessageHeaderFilterPojo filters,SmsaDownloadService swiftMessageService) throws IOException {
         logger.info("Starting exportSwiftHeadersToZip with folderPath: {}", folderPath);
 
         List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);

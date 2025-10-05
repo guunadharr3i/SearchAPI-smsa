@@ -24,7 +24,6 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,10 +31,8 @@ public class TxtFilesService {
 
     private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(TxtFilesService.class);
 
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
 
-    public File exportSelectedMessagesToTxt(SwiftMessageHeaderFilterPojo filters, String tempDirPath) throws IOException {
+    public File exportSelectedMessagesToTxt(SwiftMessageHeaderFilterPojo filters, String tempDirPath,SmsaDownloadService swiftMessageService) throws IOException {
 
         List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);
         if (records == null || records.isEmpty()) {

@@ -26,6 +26,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,10 +34,9 @@ public class SwiftMessageExportTxtService {
 
     private static final org.apache.logging.log4j.Logger log = LogManager.getLogger(SwiftMessageExportTxtService.class);
 
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
+   
 
-    public File exportTxtZip(String baseDirPath, SwiftMessageHeaderFilterPojo filters) throws IOException {
+    public File exportTxtZip(String baseDirPath, SwiftMessageHeaderFilterPojo filters,SmsaDownloadService swiftMessageService) throws IOException {
         log.info("Starting export of SwiftMessageHeaders directly into ZIP...");
 
         List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);

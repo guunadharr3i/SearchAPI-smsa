@@ -13,7 +13,7 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 @SpringBootApplication(scanBasePackages={"com.smsa"})
 @EnableSwagger2
-public class SmsaApplication extends SpringBootServletInitializer{
+public class SmsaApplication{
 
 
     public static void main(String[] args) {

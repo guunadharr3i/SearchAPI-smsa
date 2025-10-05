@@ -14,32 +14,29 @@ import java.util.List;
 
 @Service
 public class SwiftMessageExcelExportService {
-    
+
     private static final Logger log = LogManager.getLogger(SwiftMessageExcelExportService.class);
-    
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
 
     /**
      * Generates a single binary Excel (.xlsb) workbook with all filtered
      * headers.
      */
-    public byte[] exportSwiftHeadersToSingleExcel(SwiftMessageHeaderFilterPojo filters) throws IOException {
+    public byte[] exportSwiftHeadersToSingleExcel(SwiftMessageHeaderFilterPojo filters, SmsaDownloadService swiftMessageService) throws IOException {
         log.info("Starting SwiftMessageHeader single Excel (.xlsb) export...");
-        
+
         List<SmsaDownloadResponsePojo> headers = swiftMessageService.filterDownloadData(filters);
         if (headers.isEmpty()) {
             log.warn("No SwiftMessageHeader records found. Returning empty Excel.");
         }
-        
+
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            
+
             Workbook workbook = new Workbook(FileFormatType.XLSB);
             Worksheet sheet = workbook.getWorksheets().get(0);
             sheet.setName("Swift Headers");
-            
+
             String[] headersRow = createHeaderRow(sheet);
-            
+
             int rowNum = 1;
             int serialNo = 1;
             for (SmsaDownloadResponsePojo h : headers) {
@@ -50,7 +47,7 @@ public class SwiftMessageExcelExportService {
             for (int col = 0; col < headersRow.length; col++) {
                 sheet.getCells().setColumnWidth(col, 20); // approx width
             }
-            
+
             workbook.save(out, SaveFormat.XLSB);
             log.info("Excel (.xlsb) generation completed with {} records.", headers.size());
             return out.toByteArray();
@@ -68,15 +65,15 @@ public class SwiftMessageExcelExportService {
             "ValueDate", "Currency", "Amount", "M_Text", "M_History",
             "File Type A/N", "Send-Rec DateTime", "Unit", "MIR/MOR"
         };
-        
+
         Cells cells = sheet.getCells();
         for (int i = 0; i < headers.length; i++) {
             cells.get(0, i).putValue(headers[i]);
         }
-        
+
         return headers;
     }
-    
+
     private void populateSheetRow(Worksheet sheet, int rowNum, SmsaDownloadResponsePojo h, int serialNo) {
         Cells cells = sheet.getCells();
         int col = 0;

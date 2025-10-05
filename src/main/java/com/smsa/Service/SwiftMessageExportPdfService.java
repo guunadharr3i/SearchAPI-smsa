@@ -23,17 +23,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SwiftMessageExportPdfService {
 
-    @Autowired
-    private SmsaDownloadService swiftMessageService;
     private static final Logger logger = LogManager.getLogger(SwiftMessageExportPdfService.class);
 
-    public File exportSelectedMessagesToPdf(String tempDirPath, SwiftMessageHeaderFilterPojo filters) {
+    public File exportSelectedMessagesToPdf(String tempDirPath, SwiftMessageHeaderFilterPojo filters, SmsaDownloadService swiftMessageService) {
         logger.info("Exporting selected messages to PDF. Temp directory: {}, Filters: {}", tempDirPath, filters);
 
         List<SmsaDownloadResponsePojo> records = swiftMessageService.filterDownloadData(filters);

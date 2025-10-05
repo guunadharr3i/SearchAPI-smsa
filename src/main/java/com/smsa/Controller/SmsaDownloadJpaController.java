@@ -37,6 +37,7 @@ import com.smsa.Enums.ApiResponseCode;
 import com.smsa.NameConstants.AppConstants;
 import com.smsa.ResponseWrappers.DownloadApiResponse;
 import com.smsa.Service.SelectedCsvFileService;
+import com.smsa.Service.SmsaDownloadService;
 import com.smsa.Service.SwiftMessageCsvExportService;
 import com.smsa.Service.SwiftMessageExcelExportService;
 import com.smsa.Service.SwiftMessageExportPdfService;
@@ -45,12 +46,15 @@ import com.smsa.Service.SwiftMessageExportTxtService;
 import com.smsa.Service.TxtFilesService;
 import com.smsa.Utils.EncryptedtPayloadRequest;
 import com.smsa.encryption.AESUtil;
+import com.smsa.repository.SwiftGeoMasterRepository;
 import com.smsa.tokenValidation.AuthenticateAPi;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.List;
 import java.util.zip.ZipOutputStream;
 import javax.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @RestController
 @RequestMapping
@@ -75,6 +79,17 @@ public class SmsaDownloadJpaController {
     @Autowired
     private SelectedCsvFileService exportSelectedCSVService;
 
+    @Autowired
+    private SwiftGeoMasterRepository swiftGeoMasterRepository;
+
+    @Autowired
+    @Qualifier("smsa_download")
+    private SmsaDownloadService swiftMessageService;
+
+    @Autowired
+    @Qualifier("isec_download")
+    private SmsaDownloadService isecMessageService;
+
     @Value("${aes.auth.key}")
     private String secretKey;
     @Value("${aes.auth.vi.key}")
@@ -95,28 +110,34 @@ public class SmsaDownloadJpaController {
             ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             // Step 3: Authentication
-            logger.info(" time before autheticate api: "+ new Date());
+            logger.info(" time before autheticate api: " + new Date());
             String accessToken = authenticateApi.validateAndRefreshToken(filter.getTokenRequest());
             logger.info("after method call time: "+new Date()+ " token value is : "+accessToken);
             if (accessToken == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
             }
+
+            if (!filter.getFilter().getGeoId().isEmpty()) {
+                List<String> geoCodes = swiftGeoMasterRepository.findGeoCodesByGeoNames(filter.getFilter().getGeoId());
+                filter.getFilter().getGeoId().clear();
+                filter.getFilter().setGeoId(geoCodes);
+            }
             switch (downloadType.toUpperCase()) {
 //                case "XLSX":
 //                    return exportSwiftHeadersToExcel(filter.getFilter());
                 case "TXT":
-                    return exportTxtZip(filter.getFilter());
+                    return exportTxtZip(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 case "CSV":
-                    return exportSwiftHeadersToCsv(filter.getFilter());
+                    return exportSwiftHeadersToCsv(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 case "PDF":
-                    return exportSelectedMessagesToPdf(filter.getFilter());
+                    return exportSelectedMessagesToPdf(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 case "CTXT":
-                    return downloadTxt(filter.getFilter());
+                    return downloadTxt(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 case "CCSV":
-                    return selectedDataToCsv(filter.getFilter());
+                    return selectedDataToCsv(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 case "CXLSX":
-                    return selectedSwiftHeadersToExcel(filter.getFilter());
+                    return selectedSwiftHeadersToExcel(filter.getFilter(), filter.getTokenRequest().get("moduleName"));
                 default:
                     return ResponseEntity.badRequest()
                             .body(DownloadApiResponse.error(ApiResponseCode.INVALID_DOWNLOAD_TYPE));
@@ -156,7 +177,7 @@ public class SmsaDownloadJpaController {
             response.setHeader("Content-Disposition", "attachment; filename=swift_xls_export.zip");
 
             try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream())) {
-                exportService.streamSwiftHeadersToZip(zos, filter.getFilter());
+                exportService.streamSwiftHeadersToZip(zos, filter.getFilter(),filter.getTokenRequest().get("moduleName"));
                 zos.finish();
             }
 
@@ -181,12 +202,15 @@ public class SmsaDownloadJpaController {
         return ResponseEntity.badRequest().body(errorBody);
     }
 
-
-
-    public ResponseEntity<?> exportTxtZip(SwiftMessageHeaderFilterPojo filters) {
+    public ResponseEntity<?> exportTxtZip(SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Exporting TXT zip");
         try {
-            File zipFile = txtService.exportTxtZip(System.getProperty(AppConstants.JAVA_IO_TMPDIR), filters);
+            File zipFile = null;
+            if (moduleName.equals("SMSA")) {
+                zipFile = txtService.exportTxtZip(System.getProperty(AppConstants.JAVA_IO_TMPDIR), filters, swiftMessageService);
+            } else {
+                zipFile = txtService.exportTxtZip(System.getProperty(AppConstants.JAVA_IO_TMPDIR), filters, isecMessageService);
+            }
 
             if (zipFile == null || !zipFile.exists()) {
                 logger.warn("TXT zip export returned null or file not found");
@@ -203,11 +227,16 @@ public class SmsaDownloadJpaController {
     }
 
     @GetMapping("/export/csv")
-    public ResponseEntity<?> exportSwiftHeadersToCsv(SwiftMessageHeaderFilterPojo filters) {
+    public ResponseEntity<?> exportSwiftHeadersToCsv(SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Exporting CSV zip");
         try {
             String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
-            String filePath = csvExportService.exportSwiftHeadersToZip(path, filters);
+            String filePath = null;
+            if (moduleName.equalsIgnoreCase("SMSA")) {
+                filePath = csvExportService.exportSwiftHeadersToZip(path, filters, swiftMessageService);
+            } else {
+                filePath = csvExportService.exportSwiftHeadersToZip(path, filters, isecMessageService);
+            }
 
             if (filePath == null || filePath.isEmpty()) {
                 logger.warn("CSV zip generation failed: No records found.");
@@ -230,15 +259,18 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    public ResponseEntity<?> exportSelectedMessagesToPdf(SwiftMessageHeaderFilterPojo filters) {
+    public ResponseEntity<?> exportSelectedMessagesToPdf(SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Request received to export selected messages to PDF. Filters: {}", filters);
 
         File filePath = null;
         try {
             String path = System.getProperty(AppConstants.JAVA_IO_TMPDIR);
             logger.info("Temporary directory for PDF export: {}", path);
-
-            filePath = pdfExportService.exportSelectedMessagesToPdf(path, filters);
+            if (moduleName.equals("SMSA")) {
+                filePath = pdfExportService.exportSelectedMessagesToPdf(path, filters, swiftMessageService);
+            } else {
+                filePath = pdfExportService.exportSelectedMessagesToPdf(path, filters, isecMessageService);
+            }
 
             if (filePath == null || !filePath.exists()) {
                 logger.warn("PDF generation failed: No records found.");
@@ -266,15 +298,19 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    public ResponseEntity<?> downloadTxt(SwiftMessageHeaderFilterPojo filters) {
+    public ResponseEntity<?> downloadTxt(SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Request received to download TXT with filters: {}", filters);
 
         File txtFile = null;
         try {
             String tempDir = System.getProperty("java.io.tmpdir");
             logger.info("Temporary directory for TXT file: {}", tempDir);
+            if (moduleName.equals("SMSA")) {
+                txtFile = txtFilesService.exportSelectedMessagesToTxt(filters, tempDir, swiftMessageService);
+            } else {
+                txtFile = txtFilesService.exportSelectedMessagesToTxt(filters, tempDir, isecMessageService);
 
-            txtFile = txtFilesService.exportSelectedMessagesToTxt(filters, tempDir);
+            }
 
             if (txtFile == null || !txtFile.exists()) {
                 logger.warn("TXT generation failed: No records found.");
@@ -371,10 +407,18 @@ public class SmsaDownloadJpaController {
         return refreshCall;
     }
 
-    public ResponseEntity<?> selectedSwiftHeadersToExcel(@RequestBody SwiftMessageHeaderFilterPojo filters) {
+    @PostMapping("/export-swift-headers")
+    public ResponseEntity<?> selectedSwiftHeadersToExcel(@RequestBody SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Exporting data to single Excel file");
+
         try {
-            byte[] excelData = exportSelectedxlsxService.exportSwiftHeadersToSingleExcel(filters);
+            // Call service to generate Excel as byte[]
+            byte[] excelData;
+            if (moduleName.equals("SMSA")) {
+                excelData = exportSelectedxlsxService.exportSwiftHeadersToSingleExcel(filters,swiftMessageService);
+            } else {
+                excelData = exportSelectedxlsxService.exportSwiftHeadersToSingleExcel(filters,isecMessageService);
+            }
 
             if (excelData == null || excelData.length == 0) {
                 logger.warn("Generated Excel file is empty");
@@ -399,11 +443,16 @@ public class SmsaDownloadJpaController {
         }
     }
 
-    public ResponseEntity<?> selectedDataToCsv(@RequestBody SwiftMessageHeaderFilterPojo filters) {
+    public ResponseEntity<?> selectedDataToCsv(@RequestBody SwiftMessageHeaderFilterPojo filters, String moduleName) {
         logger.info("Exporting data to CSV file");
 
         try {
-            byte[] csvData = exportSelectedCSVService.exportSwiftHeadersToCsv(filters);
+            byte[] csvData;
+            if (moduleName.equals("SMSA")) {
+                csvData = exportSelectedCSVService.exportSwiftHeadersToCsv(filters, swiftMessageService);
+            } else {
+                csvData = exportSelectedCSVService.exportSwiftHeadersToCsv(filters, isecMessageService);
+            }
 
             if (csvData.length == 0) {
                 logger.warn("Generated CSV file is empty");

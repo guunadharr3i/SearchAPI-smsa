@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.repository.query.Param;
 
 @Repository
 public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessageHeader, Long> {
@@ -42,10 +43,14 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
             + "ORDER BY COUNT(s) DESC")
     List<Object[]> findTopReciverBicsStartingWithICIC(Pageable pageable);
 
-    @Query("SELECT DISTINCT s.msgType FROM SwiftMessageHeader s ORDER BY s.msgType asc")
-    List<String> findDistinctSmsaMsgTypesOrdered();
 
     @Query("SELECT DISTINCT s.messageId from SwiftMessageHeader s  where s.transactionRef=:transactionRef order by s.messageId")
     List<Long> findDistinctSmsaMessageIdOrdered(String transactionRef);
+
+    @Query(value = "SELECT SMSA_MSG_TYPE "
+            + "FROM SMSA_PRT_MESSAGE_HDR "
+            + "WHERE SMSA_GEO_ID IN (:geoIds)",
+            nativeQuery = true)
+    List<String> findMsgTypesByGeoIds(@Param("geoIds") List<String> geoIds);
 
 }
