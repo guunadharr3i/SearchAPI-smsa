@@ -1,22 +1,23 @@
 package com.smsa.entity;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
+import javax.persistence.OneToOne;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 
 @Entity
 @Table(name = "SMSA_PRT_MESSAGE_HDR")
-public class SwiftMessageHeader implements Serializable {
+public class SwiftMessageHeader {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "message_seq")
@@ -25,21 +26,23 @@ public class SwiftMessageHeader implements Serializable {
     private Long messageId;
 
 
-    public Long getMessageId() {
-        return this.messageId;
-    }
 
-    public void setMessageId(Long messageId) {
-        this.messageId = messageId;
-    }
+    @OneToOne(mappedBy = "header", cascade = CascadeType.ALL, orphanRemoval = true)
+    private SwiftMessageInstance instance;
 
-    public String getHeaderRawJson() {
-        return this.headerRawJson;
-    }
+    @OneToOne(mappedBy = "header", cascade = CascadeType.ALL, orphanRemoval = true)
+    private SwiftMessageText text;
 
-    public void setHeaderRawJson(String headerRawJson) {
-        this.headerRawJson = headerRawJson;
-    }
+    @OneToOne(mappedBy = "header", cascade = CascadeType.ALL, orphanRemoval = true)
+    private SwiftMessageTrailer trailer;
+
+    @OneToOne(mappedBy = "header", cascade = CascadeType.ALL, orphanRemoval = true)
+    private SwiftMessageIntervention intervention;
+
+    @OneToOne(mappedBy = "header", cascade = CascadeType.ALL, orphanRemoval = true)
+    private SwiftMissingMior missing;
+
+  
     /**
      * @param messageHdrId
      *                     This parameter holds the message reference number,
@@ -173,50 +176,20 @@ public class SwiftMessageHeader implements Serializable {
     @Column(name = "SMSA_TRXN_RLTD_REFN", columnDefinition = "VARCHAR2(100)")
     private String transactionRelatedRefNo;
 
-    @Column(name = "SMSA_VALUE_DATE", columnDefinition = "DATE")
+    @Column(name = "SMSA_MSG_VALDATE", columnDefinition = "DATE")
     private LocalDate valueDate;
 
-    @Column(name = "SMSA_EFFECTIVE_AMOUNT", columnDefinition = "NUMBER(*,2)")
+    @Column(name = "SMSA_MSG_EFFECTIVE_AMOUNT", columnDefinition = "NUMBER(*,2)")
     private BigDecimal effectiveAmount;
 
-    @Column(name = "SMSA_EFFECTIVE_CCY", columnDefinition = "VARCHAR2(3)")
+    @Column(name = "SMSA_MSG_EFFECTIVE_CCY", columnDefinition = "VARCHAR2(3)")
     private String effectiveCurrency;
-    @Column(name = "SMSA_Message_2ndCopy", columnDefinition = "TIMESTAMP(6)")
+    @Column(name = "SMSA_MSG_2ndCopy", columnDefinition = "TIMESTAMP(6)")
     private String message2ndCopyDate;
-    @Column(name = "SMSA_FIRCO_SOFT_STATUS", columnDefinition = "VARCHAR2(100)")
+    @Column(name = "SMSA_MSG_FIRCOSOFT_STATUS", columnDefinition = "VARCHAR2(100)")
     private String fircoSoftStatus;
-
-    public String getMessage2ndCopyDate() {
-        return message2ndCopyDate;
-    }
-
-    public void setMessage2ndCopyDate(String message2ndCopyDate) {
-        this.message2ndCopyDate = message2ndCopyDate;
-    }
-
-    public String getFircoSoftStatus() {
-        return fircoSoftStatus;
-    }
-
-    public void setFircoSoftStatus(String fircoSoftStatus) {
-        this.fircoSoftStatus = fircoSoftStatus;
-    }
-
-    public String getEffectiveCurrency() {
-        return this.effectiveCurrency;
-    }
-
-    public void setEffectiveCurrency(String effectiveCurrency) {
-        this.effectiveCurrency = effectiveCurrency;
-    }
-
-    public String getTransactionRelatedRefNo() {
-        return this.transactionRelatedRefNo;
-    }
-
-    public void setTransactionRelatedRefNo(String transactionRelatedRefNo) {
-        this.transactionRelatedRefNo = transactionRelatedRefNo;
-    }
+    @Column(name = "SMSA_MSG_FIRCOSOFT_MSG", columnDefinition = "VARCHAR2(100)")
+    private String fircoSoftMsg;
 
     public LocalDate getValueDate() {
         return this.valueDate;
@@ -234,6 +207,46 @@ public class SwiftMessageHeader implements Serializable {
         this.effectiveAmount = effectiveAmount;
     }
 
+    public String getEffectiveCurrency() {
+        return this.effectiveCurrency;
+    }
+
+    public void setEffectiveCurrency(String effectiveCurrency) {
+        this.effectiveCurrency = effectiveCurrency;
+    }
+
+    public String getMessage2ndCopyDate() {
+        return this.message2ndCopyDate;
+    }
+
+    public void setMessage2ndCopyDate(String message2ndCopyDate) {
+        this.message2ndCopyDate = message2ndCopyDate;
+    }
+
+    public String getFircoSoftStatus() {
+        return this.fircoSoftStatus;
+    }
+
+    public void setFircoSoftStatus(String fircoSoftStatus) {
+        this.fircoSoftStatus = fircoSoftStatus;
+    }
+
+    public String getFircoSoftMsg() {
+        return this.fircoSoftMsg;
+    }
+
+    public void setFircoSoftMsg(String fircoSoftMsg) {
+        this.fircoSoftMsg = fircoSoftMsg;
+    }
+
+    public String getTransactionRelatedRefNo() {
+        return transactionRelatedRefNo;
+    }
+
+    public void setTransactionRelatedRefNo(String transactionRelatedRefNo) {
+        this.transactionRelatedRefNo = transactionRelatedRefNo;
+    }
+
     /**
      * get field @Id
      * 
@@ -244,7 +257,7 @@ public class SwiftMessageHeader implements Serializable {
      * @Column(name = "SMSA_MESSAGE_ID")
      * 
      */
-    public Long getId() {
+    public Long getMessageId() {
         return this.messageId;
     }
 
@@ -258,7 +271,7 @@ public class SwiftMessageHeader implements Serializable {
      * @Column(name = "SMSA_MESSAGE_ID")
      * 
      */
-    public void setId(Long messageId) {
+    public void setMessageId(Long messageId) {
         this.messageId = messageId;
     }
 
@@ -887,5 +900,44 @@ public class SwiftMessageHeader implements Serializable {
      */
     public void setGeoId(String geoId) {
         this.geoId = geoId;
+    }
+    public SwiftMessageInstance getInstance() {
+        return this.instance;
+    }
+
+    public void setInstance(SwiftMessageInstance instance) {
+        this.instance = instance;
+    }
+
+    public SwiftMessageText getText() {
+        return this.text;
+    }
+
+    public void setText(SwiftMessageText text) {
+        this.text = text;
+    }
+
+    public SwiftMessageTrailer getTrailer() {
+        return this.trailer;
+    }
+
+    public void setTrailer(SwiftMessageTrailer trailer) {
+        this.trailer = trailer;
+    }
+
+    public SwiftMessageIntervention getIntervention() {
+        return this.intervention;
+    }
+
+    public void setIntervention(SwiftMessageIntervention intervention) {
+        this.intervention = intervention;
+    }
+
+    public SwiftMissingMior getMissing() {
+        return this.missing;
+    }
+
+    public void setMissing(SwiftMissingMior missing) {
+        this.missing = missing;
     }
 }

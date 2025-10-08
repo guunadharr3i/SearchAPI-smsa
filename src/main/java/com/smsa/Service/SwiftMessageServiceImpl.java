@@ -327,7 +327,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
     
     private SwiftMessageHeaderPojo mapToPojo(SwiftMessageHeader entity) {
         SwiftMessageHeaderPojo pojo = new SwiftMessageHeaderPojo();
-        pojo.setMessageId(entity.getId());
+        pojo.setMessageId(entity.getMessageId());
         pojo.setFileName(entity.getFileName());
         pojo.setFileType(entity.getFileType());
         pojo.setInpOut(entity.getInpOut());
