@@ -10,6 +10,7 @@ import com.smsa.DTO.FilterRequest;
 import com.smsa.DTO.SwiftMessageHeaderPojo;
 import com.smsa.Enums.ErrorCode;
 import com.smsa.ResponseWrappers.ApiResponse;
+import com.smsa.Service.MailService;
 import com.smsa.Service.SwiftMessageService;
 import com.smsa.Utils.EncryptedResponseData;
 import com.smsa.Utils.EncryptedtPayloadRequest;
@@ -28,7 +29,6 @@ import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -57,6 +57,9 @@ public class SwiftMessageController {
     
     @Value("${aes.auth.vi.key}")
     private String viKey;
+    
+    @Autowired
+    private MailService mailService;
     
     @Autowired
     private SwiftGeoMasterRepository swiftGeoMasterRepository;
@@ -143,16 +146,16 @@ public class SwiftMessageController {
 //                return ResponseEntity.status(statusCode).body(response);
 //            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
-
+            
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult;
-             if (!filter.getFilter().getGeoId().isEmpty()) {
-                    List<String> geoCodes = swiftGeoMasterRepository.findGeoCodesByGeoNames(filter.getFilter().getGeoId());
-                    filter.getFilter().getGeoId().clear();
-                    filter.getFilter().setGeoId(geoCodes);
-                }
+            if (filter.getFilter().getGeoId() != null && !filter.getFilter().getGeoId().isEmpty()) {
+                List<String> geoCodes = swiftGeoMasterRepository.findGeoCodesByGeoNames(filter.getFilter().getGeoId());
+                filter.getFilter().getGeoId().clear();
+                filter.getFilter().setGeoId(geoCodes);
+            }
             if (filter.getTokenRequest().get("moduleName").equalsIgnoreCase("SMSA")) {
-               
+                
                 pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
             } else {
                 pagedResult = isecService.getFilteredMessages(filter.getFilter(), pageable);
@@ -187,7 +190,7 @@ public class SwiftMessageController {
         try {
             String token = request.getToken();
             String deviceHash = request.getDeviceHash();
-            
+
 //            Map<String, String> tokenMap = new HashMap<>();
 //            tokenMap.put("token", token);
 //            tokenMap.put("DeviceHash", deviceHash);
@@ -289,7 +292,7 @@ public class SwiftMessageController {
     @PostMapping("/fetchRawData")
     public ResponseEntity<?> getRawFilterData(@RequestBody Map<String, String> req) {
         try {
-              List<String> rawData=service.getRawData(req.get("transactionRef"));
+            List<String> rawData = service.getRawData(req.get("transactionRef"));
             return ResponseEntity.ok(rawData);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Exception Occured Pls Check Logs");
@@ -330,6 +333,23 @@ public class SwiftMessageController {
         request.getGeoIds().clear();
         request.setGeoIds(geoCodes);
         return request;
+    }
+    
+    @PostMapping("/send")
+    public ResponseEntity<String> sendMail(
+            @RequestParam String to,
+            @RequestParam String subject,
+            @RequestParam String body) {
+        
+        try {
+            logger.info("inside mail send method");
+            mailService.sendMail(to, subject, body);
+            logger.info("mail sent");
+            return ResponseEntity.ok("Mail sent successfully to " + to);
+        } catch (Exception e) {
+            logger.error("error occured: "+e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send mail: " + e.getMessage());
+        }
     }
     
 }
