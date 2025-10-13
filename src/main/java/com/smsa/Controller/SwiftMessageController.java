@@ -38,36 +38,36 @@ import org.springframework.beans.factory.annotation.Qualifier;
 @RestController
 @RequestMapping
 public class SwiftMessageController {
-    
+
     private static final org.apache.logging.log4j.Logger logger = LogManager.getLogger(SwiftMessageController.class);
-    
+
     @Autowired
     @Qualifier("smsa_service")
     private SwiftMessageService service;
-    
+
     @Autowired
     @Qualifier("isec_service")
     private SwiftMessageService isecService;
-    
+
     @Autowired
     private AuthenticateAPi authenticateApi;
-    
+
     @Value("${aes.auth.key}")
     private String secretKey;
-    
+
     @Value("${aes.auth.vi.key}")
     private String viKey;
-    
+
     @Autowired
     private MailService mailService;
-    
+
     @Autowired
     private SwiftGeoMasterRepository swiftGeoMasterRepository;
 
     // Reusable ObjectMapper without JavaTimeModule
     private ObjectMapper getCustomMapper() {
         ObjectMapper mapper = new ObjectMapper();
-        
+
         SimpleModule customDatesModule = new SimpleModule();
 
         // Serializer for LocalDate (same as before)
@@ -109,23 +109,23 @@ public class SwiftMessageController {
                 return LocalDateTime.parse(dateTimeStr.trim());
             }
         });
-        
+
         mapper.registerModule(customDatesModule);
         return mapper;
     }
-    
+
     @PostMapping("/searchApi")
     public ResponseEntity<ApiResponse<String>> getFilteredMessages(
             @RequestBody EncryptedtPayloadRequest encryptedRequest,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        
+
         logger.info("Received encrypted request to /searchApi");
-        
+
         try {
             String decryptedJson = AESUtil.decrypt(encryptedRequest.getEncryptedPayload(), secretKey, viKey);
             ObjectMapper mapper = getCustomMapper();
-            
+
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
             logger.info("before authentication call time: " + new Date());
 //            String decryptedToken=AESUtil.decrypt(filter.getTokenRequest().get("token"), secretKey, viKey);
@@ -146,7 +146,7 @@ public class SwiftMessageController {
 //                return ResponseEntity.status(statusCode).body(response);
 //            }
             logger.info("Decrypted FilterRequest: {}, page: {}, size: {}", filter, page, size);
-            
+
             Pageable pageable = PageRequest.of(page, size);
             Page<SwiftMessageHeaderPojo> pagedResult;
             if (filter.getFilter().getGeoId() != null && !filter.getFilter().getGeoId().isEmpty()) {
@@ -155,24 +155,24 @@ public class SwiftMessageController {
                 filter.getFilter().setGeoId(geoCodes);
             }
             if (filter.getTokenRequest().get("moduleName").equalsIgnoreCase("SMSA")) {
-                
+
                 pagedResult = service.getFilteredMessages(filter.getFilter(), pageable);
             } else {
                 pagedResult = isecService.getFilteredMessages(filter.getFilter(), pageable);
             }
-            
+
             EncryptedResponseData responseData = new EncryptedResponseData();
             responseData.setAccessToken(filter.getTokenRequest().get("token"));
             responseData.setMessages(pagedResult.getContent());
             responseData.setTotalElements(pagedResult.getTotalElements());
             responseData.setTotalPages(pagedResult.getTotalPages());
             responseData.setCurrentPage(pagedResult.getNumber());
-            
+
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
-            
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
-            
+
         } catch (JsonProcessingException ex) {
             logger.error("JsonProcessingException: {}", ex.getMessage(), ex);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -183,7 +183,7 @@ public class SwiftMessageController {
                     .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
-    
+
     @PostMapping("/getMessageTypes")
     public ResponseEntity<?> getMessageTypes(@RequestBody AuthRequest request) {
         logger.info("Request received to get messageTypes.");
@@ -216,24 +216,24 @@ public class SwiftMessageController {
                 data = isecService.getMessageTypes(request.getGeoIds());
             }
             logger.info("Successfully fetched {} MessageTypes.", data.size());
-            
+
             ObjectMapper mapper = getCustomMapper();
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("messageTypes", data);
             responseData.put("accessToken", token);
-            
+
             String jsonResponse = mapper.writeValueAsString(responseData);
             String encryptedResponse = AESUtil.encrypt(jsonResponse, secretKey, viKey);
-            
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encryptedResponse));
-            
+
         } catch (Exception e) {
             logger.error("Error fetching Message Type data: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
-    
+
     @PostMapping("/decryptMessageTypes")
     public ResponseEntity<?> decryptResponse(@RequestBody EncryptedtPayloadRequest request) {
         logger.info("Request received to decrypt data.");
@@ -248,22 +248,22 @@ public class SwiftMessageController {
                     .body(new ApiResponse<>(ErrorCode.DECRYPTION_FAILED));
         }
     }
-    
+
     @GetMapping
     public String hello() {
         logger.info("Health check called at root endpoint.");
         return "Hey Developer! I am SMSA Search api, My Deployment Successful";
     }
-    
+
     @PostMapping("/encryptFilter")
     public ResponseEntity<ApiResponse<String>> encryptFilterPayload(@RequestBody FilterRequest filter) {
         try {
             logger.info("Received request to /encryptFilter: {}", filter);
-            
+
             ObjectMapper mapper = getCustomMapper();
             String json = mapper.writeValueAsString(filter);
             String encrypted = AESUtil.encrypt(json, secretKey, viKey);
-            
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, encrypted));
         } catch (Exception e) {
             logger.error("Encryption failed: {}", e.getMessage(), e);
@@ -271,16 +271,16 @@ public class SwiftMessageController {
                     .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
-    
+
     @PostMapping("/decryptFilter")
     public ResponseEntity<ApiResponse<FilterRequest>> decryptFilterPayload(@RequestBody EncryptedtPayloadRequest request) {
         try {
             logger.info("Received request to /decryptFilter");
-            
+
             String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
             ObjectMapper mapper = getCustomMapper();
             FilterRequest filter = mapper.readValue(decryptedJson, FilterRequest.class);
-            
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
         } catch (Exception e) {
             logger.error("Decryption failed: {}", e.getMessage(), e);
@@ -288,7 +288,7 @@ public class SwiftMessageController {
                     .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
-    
+
     @PostMapping("/fetchRawData")
     public ResponseEntity<?> getRawFilterData(@RequestBody Map<String, String> req) {
         try {
@@ -298,16 +298,16 @@ public class SwiftMessageController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Exception Occured Pls Check Logs");
         }
     }
-    
+
     @PostMapping("/decryptSearchFilter")
     public ResponseEntity<ApiResponse<EncryptedResponseData>> decryptSearchFilterResponse(@RequestBody EncryptedtPayloadRequest request) {
         try {
             logger.info("Received request to /decryptFilter");
-            
+
             String decryptedJson = AESUtil.decrypt(request.getEncryptedPayload(), secretKey, viKey);
             ObjectMapper mapper = getCustomMapper();
             EncryptedResponseData filter = mapper.readValue(decryptedJson, EncryptedResponseData.class);
-            
+
             return ResponseEntity.ok(new ApiResponse<>(ErrorCode.SUCCESS, filter));
         } catch (Exception e) {
             logger.error("Decryption failed: {}", e.getMessage(), e);
@@ -315,7 +315,7 @@ public class SwiftMessageController {
                     .body(new ApiResponse<>(ErrorCode.INTERNAL_ERROR));
         }
     }
-    
+
     public Map<String, String> encryptTOken(FilterRequest filter) {
         Map<String, String> refreshCall = new HashMap<>();
         try {
@@ -327,29 +327,35 @@ public class SwiftMessageController {
         }
         return refreshCall;
     }
-    
+
     public AuthRequest getGeoCodes(AuthRequest request) {
         List<String> geoCodes = swiftGeoMasterRepository.findGeoCodesByGeoNames(request.getGeoIds());
         request.getGeoIds().clear();
         request.setGeoIds(geoCodes);
         return request;
     }
-    
+
     @PostMapping("/send")
     public ResponseEntity<String> sendMail(
             @RequestParam String to,
             @RequestParam String subject,
             @RequestParam String body) {
-        
+
         try {
             logger.info("inside mail send method");
-            mailService.sendMail(to, subject, body);
+            boolean mailSent = mailService.sendMail(to, subject, body);
+            String str = "";
+            if (mailSent) {
+                str = "Mail sent ";
+            } else {
+                str = "Mail not sent ";
+            }
             logger.info("mail sent");
-            return ResponseEntity.ok("Mail sent successfully to " + to);
+            return ResponseEntity.ok(str + to);
         } catch (Exception e) {
-            logger.error("error occured: "+e);
+            logger.error("error occured: " + e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to send mail: " + e.getMessage());
         }
     }
-    
+
 }
