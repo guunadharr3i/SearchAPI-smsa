@@ -47,7 +47,7 @@ public interface SwiftMessageHeaderRepository extends JpaRepository<SwiftMessage
     @Query("SELECT DISTINCT s.messageId from SwiftMessageHeader s  where s.transactionRef=:transactionRef order by s.messageId")
     List<Long> findDistinctSmsaMessageIdOrdered(String transactionRef);
 
-    @Query(value = "SELECT SMSA_MSG_TYPE "
+    @Query(value = "SELECT DISTINCT SMSA_MSG_TYPE "
             + "FROM SMSA_PRT_MESSAGE_HDR "
             + "WHERE SMSA_GEO_ID IN (:geoIds)",
             nativeQuery = true)

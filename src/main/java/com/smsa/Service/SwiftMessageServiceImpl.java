@@ -69,7 +69,7 @@ public class SwiftMessageServiceImpl implements SwiftMessageService {
             // ✅ FIRST QUERY: Get header data without CLOB
             CriteriaQuery<SwiftMessageHeaderPojo> query = cb.createQuery(SwiftMessageHeaderPojo.class);
             Root<SwiftMessageHeader> root = query.from(SwiftMessageHeader.class);
-            if (filter.getReportType().equals("Fircosoft Report")) {
+            if (filter.getReportType()!=null && filter.getReportType().equals("Fircosoft Report")) {
                 if (filter.getFircoSoftReportStatus() == null || filter.getFircoSoftReportStatus().isEmpty() || filter.getFircoSoftReportStatus().equalsIgnoreCase("ALL")) {
                     List<String> status = Arrays.asList("Pending", "Approved", "Rejected");
                     filter.setFircoSoftStatus(status);

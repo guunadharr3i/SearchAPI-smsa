@@ -118,7 +118,7 @@ public class SmsaDownloadJpaController {
 //                        .body(DownloadApiResponse.error(ApiResponseCode.INVALID_TOKEN));
 //            }
 
-            if (!filter.getFilter().getGeoId().isEmpty()) {
+            if (filter.getFilter().getGeoId()!=null && !filter.getFilter().getGeoId().isEmpty()) {
                 List<String> geoCodes = swiftGeoMasterRepository.findGeoCodesByGeoNames(filter.getFilter().getGeoId());
                 filter.getFilter().getGeoId().clear();
                 filter.getFilter().setGeoId(geoCodes);
